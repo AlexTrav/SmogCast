@@ -1,4 +1,4 @@
-.PHONY: build baselines arima-orders arima figures test
+.PHONY: build baselines arima-orders arima prophet figures test
 
 IMAGE := smogcast-model
 
@@ -28,10 +28,14 @@ arima-orders: build
 arima: build
 	$(RUN) python arima.py validate
 
+# Prophet: 5 вариантов на валидации и интервалы для лучшего (около 15 минут) -> reports/prophet/validation.json
+prophet: build
+	$(RUN) python -W ignore prophet_model.py
+
 # рисунки по сохранённым отчётам; шрифт Times New Roman – из Windows
 figures: build
 	docker run --rm -v "$(CURDIR):/model" -v "$(CURDIR)/../research:/research:ro" -v "$(FIGURES):/figures" \
-		-v "C:/Windows/Fonts:/winfonts:ro" $(IMAGE) python figures.py
+		-v "$(CURDIR)/../data/series:/series:ro" -v "C:/Windows/Fonts:/winfonts:ro" $(IMAGE) python -W ignore figures.py
 
 # pytest каркаса проверки и моделей (без ряда и сети)
 test: build

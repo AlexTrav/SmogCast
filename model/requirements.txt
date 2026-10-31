@@ -1,5 +1,6 @@
 pandas==3.1.0
 matplotlib==3.11.2
 statsmodels==0.15.0
+prophet==1.5.0
 # тесты каркаса проверки и моделей (make test)
 pytest==9.2.0
