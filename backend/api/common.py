@@ -30,9 +30,16 @@ def _encode(payload) -> tuple[bytes, str]:
     return body, f'"{hashlib.sha1(body).hexdigest()[:20]}"'
 
 
+# слабое сравнение ETag (RFC 9110): Cloudflare перед Render, сжимая ответ, помечает ETag как слабый (W/"…"),
+# и браузер присылает его обратно с приставкой; в заголовке может быть и список меток через запятую
+def not_modified(header: str | None, etag: str) -> bool:
+    tags = {t.strip().removeprefix("W/") for t in (header or "").split(",")}
+    return etag in tags or "*" in tags
+
+
 def _respond(request: Request, body: bytes, etag: str) -> Response:
     headers = {"ETag": etag, "Cache-Control": "no-cache"}
-    if request.headers.get("if-none-match") == etag:
+    if not_modified(request.headers.get("if-none-match"), etag):
         return Response(status_code=304, headers=headers)
     return Response(body, media_type="application/json", headers=headers)
 

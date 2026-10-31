@@ -16,7 +16,7 @@ import psycopg
 from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from . import db, insight, levels, weather
 from .common import DEFAULT_MODEL, TZ, cached, iso, now_ms, r1, record
@@ -70,6 +70,12 @@ def database_down(_: Request, error: psycopg.OperationalError) -> JSONResponse:
 
 
 # ---------- точки API ----------
+@app.get("/", include_in_schema=False)
+def root() -> RedirectResponse:
+    """Голый адрес сервиса ведёт на документацию API."""
+    return RedirectResponse("/docs")
+
+
 @app.get("/api/health")
 def health() -> dict:
     """Жив ли сервер; базу не трогает, чтобы проверки не будили Neon."""

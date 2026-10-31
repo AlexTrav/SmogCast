@@ -16,6 +16,11 @@ def test_health_does_not_need_database(client):
     assert client.get("/api/health").json() == {"status": "ok"}
 
 
+def test_root_leads_to_docs(client):
+    response = client.get("/", follow_redirects=False)
+    assert response.status_code == 307 and response.headers["location"] == "/docs"
+
+
 def test_status_reports_last_hour_and_runs(client, filled):
     body = client.get("/api/status").json()
     last = pm(HOURS - 1)
@@ -30,6 +35,9 @@ def test_status_is_not_modified_until_new_data(client, filled):
     etag = first.headers["etag"]
     again = client.get("/api/status", headers={"If-None-Match": etag})
     assert again.status_code == 304 and again.content == b""
+    # так метку возвращает браузер за Cloudflare: слабая и в списке
+    weak = client.get("/api/status", headers={"If-None-Match": f'W/"old", W/{etag}'})
+    assert weak.status_code == 304
     filled.execute("insert into series select time + interval '1 hour', pm2_5 + 1, pm10, no2, co, so2, dust, temp, "
                    "rh, dew, wind, wind_dir, pressure, precip, cloud from series where time = %s", (LAST,))
     filled.commit()
