@@ -1,4 +1,4 @@
-.PHONY: build baselines arima-orders arima prophet weather figures test
+.PHONY: build baselines arima-orders arima prophet weather lstm figures test
 
 IMAGE := smogcast-model
 
@@ -36,6 +36,11 @@ prophet: build
 # -> reports/weather/validation.json; нужен архив прогнозов data/series/weather_prev.csv (make -C ../data prev)
 weather: build
 	$(RUN) python -W ignore compare_weather.py
+
+# LSTM, обученная в Colab (notebooks/lstm.ipynb -> artifacts/*.onnx): проверка на валидации (около минуты)
+# -> reports/lstm/validation.json
+lstm: build
+	$(RUN) python -W ignore lstm_eval.py
 
 # рисунки по сохранённым отчётам; шрифт Times New Roman – из Windows
 figures: build
