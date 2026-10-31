@@ -190,7 +190,7 @@ const messages: typeof ru = {
     factHorizonName: 'Forecast horizon',
     factHorizon: 'How many hours ahead the forecast goes – three days.',
     factTestsName: 'Automated tests',
-    factTests: 'How many automated code checks there are: data collection, research, models, API and the site. They run before every deployment.',
+    factTests: 'How many automated code checks there are: data collection, research, models, API, the site and the site in a real browser (with screenshot checks). The first five suites run on GitHub on every change, and the site and API are not updated without a green result.',
     maeName: 'Mean error (MAE)',
     mae: 'How many µg/m³ the forecast misses the actual value by on average – in either direction. For example, 5.5 means: the forecast said 30 and it was between 24.5 and 35.5. Lower is better.',
     levelHitName: 'Level guessed',
