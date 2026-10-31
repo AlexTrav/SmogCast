@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Navigation2, Sunrise, Sunset } from 'lucide-vue-next'
+import { Navigation2, Share2, Sunrise, Sunset } from 'lucide-vue-next'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
@@ -7,7 +7,8 @@ import { useCountUp } from '../../composables/useCountUp'
 import { useLive } from '../../composables/useLive'
 import type { AppLocale } from '../../types'
 import { aqiOf, levelOf, WHO_24H } from '../../utils/aqi'
-import { countdown, formatHour, formatNumber } from '../../utils/format'
+import { countdown, formatDateHour, formatHour, formatNumber } from '../../utils/format'
+import { drawCard, shareCard } from '../../utils/share'
 import { skyPhase, type SkyPhase, sunTimes } from '../../utils/sun'
 import LevelBadge from '../LevelBadge.vue'
 import AqiGauge from './AqiGauge.vue'
@@ -45,6 +46,24 @@ const change = computed(() => {
   if (c == null) return null
   return `${c > 0 ? '+' : c < 0 ? '−' : '±'}${formatNumber(Math.abs(c), lang.value)}`
 })
+// «Поделиться»: карточка PNG с небом и текущим PM2.5
+async function share() {
+  const s = status.value
+  if (!s) return
+  const blob = await drawCard({
+    pm: formatNumber(s.pm2_5, lang.value),
+    unit: t('hero.unit'),
+    level: s.level,
+    levelText: t(`levels.${s.level}`),
+    aqi: s.aqi,
+    when: formatDateHour(s.time, lang.value),
+    place: t('hero.place'),
+    phase: phase.value,
+    url: 'alextrav.github.io/SmogCast',
+  })
+  await shareCard(blob, `smogcast-${s.time.slice(0, 13)}.png`, `SmogCast · ${t('hero.place')}`)
+}
+
 // стрелка показывает, куда дует ветер: направление в данных – откуда, поэтому +180°
 const windArrow = computed(() => (props.windDir == null ? 0 : (props.windDir + 180) % 360))
 </script>
@@ -91,14 +110,21 @@ const windArrow = computed(() => (props.windDir == null ? 0 : (props.windDir + 1
             {{ t('hero.who') }}
           </p>
 
-          <p
-            class="animate-rise mt-8 inline-flex items-center gap-2 rounded-full bg-black/15 px-4 py-2 text-sm text-white/85 tabular-nums ring-1 ring-white/15 backdrop-blur-md"
-            style="animation-delay: 340ms"
-            aria-live="polite"
-          >
-            <template v-if="updating">{{ t('hero.updating') }}</template>
-            <template v-else>{{ t('hero.nextUpdate', { time: countdown(next.getTime() - now.getTime()) }) }}</template>
-          </p>
+          <div class="animate-rise mt-8 flex flex-wrap items-center gap-3" style="animation-delay: 340ms">
+            <p
+              class="inline-flex items-center gap-2 rounded-full bg-black/15 px-4 py-2 text-sm text-white/85 tabular-nums ring-1 ring-white/15 backdrop-blur-md"
+              aria-live="polite"
+            >
+              <template v-if="updating">{{ t('hero.updating') }}</template>
+              <template v-else>{{ t('hero.nextUpdate', { time: countdown(next.getTime() - now.getTime()) }) }}</template>
+            </p>
+            <button
+              class="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-sm font-medium ring-1 ring-white/25 backdrop-blur-md transition-colors hover:bg-white/25"
+              @click="share"
+            >
+              <Share2 class="h-4 w-4" aria-hidden="true" />{{ t('hero.share') }}
+            </button>
+          </div>
         </template>
 
         <!-- заготовка, пока API просыпается -->

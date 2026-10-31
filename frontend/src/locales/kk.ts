@@ -11,6 +11,7 @@ const messages: typeof ru = {
     language: 'Тіл',
   },
   hero: {
+    share: 'Бөлісу',
     aboveCity: 'Қала үстінде',
     sunrise: 'Күн шығуы',
     sunset: 'Күн батуы',
@@ -45,6 +46,8 @@ const messages: typeof ru = {
     hazardous: 'Үйде болыңыз, терезелерді жабыңыз.',
   },
   forecast: {
+    table: 'Мәндер кестесі',
+    time: 'Уақыт',
     model: 'Модель',
     fresh: '{time} жаңа деректері',
     whoLine: 'ДДСҰ нормасы 15',

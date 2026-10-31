@@ -11,6 +11,7 @@ const messages: typeof ru = {
     language: 'Language',
   },
   hero: {
+    share: 'Share',
     aboveCity: 'Above the city',
     sunrise: 'Sunrise',
     sunset: 'Sunset',
@@ -45,6 +46,8 @@ const messages: typeof ru = {
     hazardous: 'Stay indoors with windows closed.',
   },
   forecast: {
+    table: 'Data table',
+    time: 'Time',
     model: 'Model',
     fresh: 'New data for {time}',
     whoLine: 'WHO guideline 15',

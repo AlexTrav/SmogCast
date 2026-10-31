@@ -129,6 +129,30 @@ const extremes = computed(() => {
           <ForecastChart v-if="forecast && actual" :forecast="forecast" :actual="actual" />
           <div v-else class="h-80 animate-pulse rounded-2xl bg-surface-2 sm:h-96" />
         </div>
+        <!-- те же значения таблицей: для экранного диктора и для тех, кому удобнее цифры -->
+        <details v-if="forecast" class="group mt-4 text-sm">
+          <summary class="cursor-pointer font-medium text-muted hover:text-ink">{{ t('forecast.table') }}</summary>
+          <div class="mt-3 max-h-80 overflow-auto rounded-2xl border border-line">
+            <table class="w-full">
+              <thead class="sticky top-0 bg-surface text-left text-xs text-faint uppercase">
+                <tr>
+                  <th class="px-3 py-2 font-semibold">{{ t('forecast.time') }}</th>
+                  <th class="px-3 py-2 text-right font-semibold">{{ t('forecast.pred') }}</th>
+                  <th class="px-3 py-2 text-right font-semibold">{{ t('forecast.band80') }}</th>
+                  <th class="px-3 py-2 text-right font-semibold">{{ t('forecast.cams') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(v, i) in forecast.pred" :key="i" class="border-t border-line/70">
+                  <td class="px-3 py-1.5 text-muted">{{ formatDateHour(new Date(new Date(forecast.start).getTime() + i * 3_600_000), lang) }}</td>
+                  <td class="num px-3 py-1.5 text-right text-ink">{{ formatNumber(v, lang) }}</td>
+                  <td class="num px-3 py-1.5 text-right text-muted">{{ formatNumber(forecast.lo80[i], lang) }}–{{ formatNumber(forecast.hi80[i], lang) }}</td>
+                  <td class="num px-3 py-1.5 text-right text-muted">{{ forecast.cams[i] == null ? '–' : formatNumber(forecast.cams[i] as number, lang) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
       </section>
 
       <div class="space-y-6">

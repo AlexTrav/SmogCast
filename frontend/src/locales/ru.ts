@@ -9,6 +9,7 @@ const messages = {
     language: 'Язык',
   },
   hero: {
+    share: 'Поделиться',
     aboveCity: 'Над городом',
     sunrise: 'Восход',
     sunset: 'Закат',
@@ -43,6 +44,8 @@ const messages = {
     hazardous: 'Оставайтесь дома, закройте окна.',
   },
   forecast: {
+    table: 'Таблица значений',
+    time: 'Время',
     model: 'Модель',
     fresh: 'Новые данные за {time}',
     whoLine: 'норма ВОЗ 15',

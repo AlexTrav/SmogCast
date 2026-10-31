@@ -1,0 +1,16 @@
+{
+  "name": "SmogCast – прогноз смога в Алматы",
+  "short_name": "SmogCast",
+  "description": "Прогноз PM2.5 в Алматы на 72 часа с обновлением каждый час",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#f3f6fa",
+  "theme_color": "#1f6fd1",
+  "lang": "ru",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

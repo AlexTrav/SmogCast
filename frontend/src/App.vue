@@ -14,7 +14,12 @@ onMounted(wake) // будим API сразу при открытии сайта
   <NavBar />
   <ServerBanner />
   <main>
-    <RouterView />
+    <!-- переход между страницами: старая гаснет, новая проявляется снизу -->
+    <RouterView v-slot="{ Component, route }">
+      <Transition name="page" mode="out-in">
+        <component :is="Component" :key="route.path" />
+      </Transition>
+    </RouterView>
   </main>
   <FooterSection />
   <FreshToast />
