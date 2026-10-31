@@ -3,6 +3,7 @@ import { useIntervalFn } from '@vueuse/core'
 import { Pause, Play } from 'lucide-vue-next'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import TermHint from '../TermHint.vue'
 import type { AppLocale } from '../../types'
 import { levelOf } from '../../utils/aqi'
 import { formatDate, formatHour, formatNumber } from '../../utils/format'
@@ -63,7 +64,7 @@ function play() {
     </div>
     <div class="flex flex-col justify-between gap-6 bg-surface p-6">
       <div>
-        <h3 class="text-lg font-bold tracking-tight text-ink">{{ t('history.machine') }}</h3>
+        <h3 class="flex items-center gap-2 text-lg font-bold tracking-tight text-ink">{{ t('history.machine') }} <TermHint term="machine" /></h3>
         <p class="mt-1 text-sm text-muted">{{ t('history.machineText') }}</p>
       </div>
       <div>

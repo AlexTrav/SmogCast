@@ -13,6 +13,7 @@ import {
 } from 'lucide-vue-next'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import TermHint from '../components/TermHint.vue'
 import { api } from '../api/client'
 import { LINKS } from '../links'
 import type { AppLocale, ModelsReport } from '../types'
@@ -35,10 +36,10 @@ onMounted(async () => {
 const SERIES_START = Date.UTC(2022, 8, 1)
 const TESTS_TOTAL = 29 + 11 + 41 + 31 + 28
 const facts = computed(() => [
-  { value: formatNumber(Math.floor((Date.now() - SERIES_START) / 3_600_000), lang.value, 0), label: t('about.factHours') },
-  { value: '7', label: t('about.factModels') },
-  { value: '72', label: t('about.factHorizon') },
-  { value: String(TESTS_TOTAL), label: t('about.factTests') },
+  { term: 'factHours', value: formatNumber(Math.floor((Date.now() - SERIES_START) / 3_600_000), lang.value, 0), label: t('about.factHours') },
+  { term: 'factModels', value: '7', label: t('about.factModels') },
+  { term: 'factHorizon', value: '72', label: t('about.factHorizon') },
+  { term: 'factTests', value: String(TESTS_TOTAL), label: t('about.factTests') },
 ])
 
 // этапы проекта: данные, исследование, честная проверка, модели, ежечасная задача, сайт
@@ -82,7 +83,7 @@ const stack = [
     <dl class="mt-10 grid grid-cols-2 gap-4 lg:grid-cols-4">
       <div v-for="(f, i) in facts" :key="f.label" v-reveal="i" class="card lift p-5">
         <dd class="num text-4xl font-bold text-primary">{{ f.value }}</dd>
-        <dt class="mt-1 text-sm text-muted">{{ f.label }}</dt>
+        <dt class="mt-1 flex items-center gap-1.5 text-sm text-muted">{{ f.label }} <TermHint :term="f.term" /></dt>
       </div>
     </dl>
 
@@ -110,7 +111,7 @@ const stack = [
       </div>
     </section>
 
-    <h2 v-reveal class="mt-20 text-3xl font-bold tracking-tight text-ink">{{ t('about.compareTitle') }}</h2>
+    <h2 v-reveal class="mt-20 flex items-center gap-3 text-3xl font-bold tracking-tight text-ink">{{ t('about.compareTitle') }} <TermHint term="mae" /></h2>
     <p v-reveal class="mt-3 max-w-3xl text-muted">{{ t('about.compareText') }}</p>
     <div class="card mt-8 p-6 sm:p-8">
       <ul v-if="bars.length" class="space-y-3">

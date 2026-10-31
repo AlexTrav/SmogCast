@@ -2,6 +2,7 @@
 import { Info } from 'lucide-vue-next'
 import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import TermHint from '../components/TermHint.vue'
 import { api } from '../api/client'
 import TimeMachine from '../components/history/TimeMachine.vue'
 import type { DailyHistory, HourlyHistory } from '../types'
@@ -54,7 +55,7 @@ function selectDay(day: string) {
     <h1 class="animate-rise mt-3 max-w-3xl text-4xl font-bold tracking-tight text-ink sm:text-5xl" style="animation-delay: 60ms">
       {{ t('history.title') }}
     </h1>
-    <p class="animate-rise mt-4 max-w-3xl text-lg leading-relaxed text-muted" style="animation-delay: 120ms">{{ t('history.intro') }}</p>
+    <p class="animate-rise mt-4 max-w-3xl text-lg leading-relaxed text-muted" style="animation-delay: 120ms">{{ t('history.intro') }} <TermHint term="scope" /></p>
 
     <section class="mt-10">
       <TimeMachine v-if="hours?.start" v-model="selected" :start="hours.start" :values="pm" :episode="episode" />
@@ -62,7 +63,7 @@ function selectDay(day: string) {
     </section>
 
     <section v-reveal class="card mt-8 p-5 sm:p-7">
-      <h2 class="text-xl font-bold tracking-tight text-ink sm:text-2xl">{{ t('history.calendar') }}</h2>
+      <h2 class="flex items-center gap-2 text-xl font-bold tracking-tight text-ink sm:text-2xl">{{ t('history.calendar') }} <TermHint term="calendar" /></h2>
       <p class="mt-1 text-sm text-muted">{{ t('history.calendarText') }}</p>
       <ul class="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted">
         <li v-for="l in LEVELS" :key="l.key" class="flex items-center gap-2">
@@ -76,7 +77,7 @@ function selectDay(day: string) {
     </section>
 
     <section v-reveal class="card mt-8 p-5 sm:p-7">
-      <h2 class="text-xl font-bold tracking-tight text-ink sm:text-2xl">{{ t('history.series') }}</h2>
+      <h2 class="flex items-center gap-2 text-xl font-bold tracking-tight text-ink sm:text-2xl">{{ t('history.series') }} <TermHint term="series" /></h2>
       <p class="mt-1 text-sm text-muted">{{ t('history.seriesText') }}</p>
       <div class="mt-4">
         <SeriesChart v-if="hours?.start" :start="hours.start" :values="pm" :selected="selected" @select="(i) => (selected = i)" />
@@ -84,7 +85,7 @@ function selectDay(day: string) {
       </div>
       <p class="mt-4 flex gap-2 text-sm text-faint">
         <Info class="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-        {{ t('history.cycles') }}
+        <span>{{ t('history.cycles') }} <TermHint term="camsCycles" /></span>
       </p>
     </section>
   </div>
