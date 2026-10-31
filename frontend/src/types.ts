@@ -99,6 +99,32 @@ export interface Verify {
   yesterday: { issued_at: string; start: string; step: 'hour'; pred: number[]; lo80: number[]; hi80: number[]; actual: (number | null)[] } | null
 }
 
+// производительность системы (/api/performance): ежечасные запуски и скорость самого API
+export interface Stats {
+  p50: number
+  p95: number
+  max: number
+}
+
+export interface Performance {
+  data_runs: { at: string; duration_ms: number; status: string; hours_added: number | null; lag_min: number | null; db_mb: number | null; cleaned_rows: number | null; snapshot_rows: number }[]
+  model_runs: { at: string; issued_at: string; duration_ms: number; model_ms: Record<string, number>; status: string }[]
+  summary: {
+    data_ms: Stats | null
+    models_ms: Stats | null
+    model_ms: Record<string, Stats>
+    success: number | null
+    hours_with_run_7d: number
+    hours_expected_7d: number
+    db_mb: number | null
+  }
+  api: {
+    started_at: string
+    uptime_s: number
+    paths: Record<string, { requests: number; p50_ms: number; p95_ms: number; max_ms: number; not_modified: number }>
+  }
+}
+
 export interface DailyHistory {
   start: string | null // первый день (местное время Алматы), YYYY-MM-DD
   step: 'day'
