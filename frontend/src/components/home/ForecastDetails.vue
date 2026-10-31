@@ -6,6 +6,7 @@ import { api } from '../../api/client'
 import type { AppLocale, Forecast } from '../../types'
 import { formatDateHour, formatNumber } from '../../utils/format'
 import { modelColor, sortModels } from '../../utils/models'
+import TermHint from '../TermHint.vue'
 import RecomputePanel from './RecomputePanel.vue'
 
 // график – отдельным чанком вместе с ECharts: загружается, только когда раскрыли подробности
@@ -109,15 +110,17 @@ const extremes = computed(() => {
         <input v-model="band" type="checkbox" class="h-4 w-4 accent-primary" :disabled="!single" />
         {{ t('forecast.showBand') }}
       </label>
+      <TermHint term="band" class="-ml-3" />
       <label class="inline-flex cursor-pointer items-center gap-2 text-sm text-muted">
         <input v-model="cams" type="checkbox" class="h-4 w-4 accent-primary" />
         {{ t('forecast.showCams') }}
       </label>
+      <TermHint term="cams" class="-ml-3" />
     </div>
     <p v-if="!single" class="mt-2 text-xs text-faint">{{ t('forecast.bandOne') }}</p>
 
     <!-- модели галочками: у каждой свой закреплённый цвет, можно выбрать несколько -->
-    <p class="mt-5 text-sm font-medium text-muted">{{ t('forecast.compare') }}</p>
+    <p class="mt-5 flex items-center gap-2 text-sm font-medium text-muted">{{ t('forecast.compare') }} <TermHint term="blend" /></p>
     <div class="mt-2 flex flex-wrap gap-2" role="group" :aria-label="t('forecast.compare')">
       <button
         v-for="key in models"

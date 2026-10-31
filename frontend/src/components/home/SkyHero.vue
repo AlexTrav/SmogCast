@@ -5,12 +5,14 @@ import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { useCountUp } from '../../composables/useCountUp'
 import { useLive } from '../../composables/useLive'
+import { useSensitive } from '../../composables/useSensitive'
 import type { AppLocale } from '../../types'
 import { aqiOf, levelOf, WHO_24H } from '../../utils/aqi'
 import { countdown, formatDateHour, formatHour, formatNumber } from '../../utils/format'
 import { drawCard, shareCard } from '../../utils/share'
 import { skyPhase, type SkyPhase, sunTimes } from '../../utils/sun'
 import LevelBadge from '../LevelBadge.vue'
+import TermHint from '../TermHint.vue'
 import AqiGauge from './AqiGauge.vue'
 import SkyScene from '../SkyScene.vue'
 
@@ -20,6 +22,7 @@ const props = defineProps<{ wind?: number | null; windDir?: number | null }>()
 const { t, locale } = useI18n()
 const lang = computed(() => locale.value as AppLocale)
 const { status: live, now, next, updating } = useLive()
+const { sensitive } = useSensitive()
 const route = useRoute()
 
 // предпросмотр для показа: ?sky=day|dawn|dusk|night и ?pm=… подменяют фазу неба и PM2.5 (данные API не меняются)
@@ -84,10 +87,11 @@ const windArrow = computed(() => (props.windDir == null ? 0 : (props.windDir + 1
         </p>
 
         <template v-if="status">
-          <p class="animate-rise mt-8 text-sm font-semibold tracking-[0.14em] text-white/70 uppercase" style="animation-delay: 80ms">
-            {{ t('hero.pm') }}
+          <!-- relative z-10: строка крупной цифры выше своего текста и иначе перекрывала бы значок «?» -->
+          <p class="animate-rise relative z-10 mt-8 flex items-center gap-2 text-sm font-semibold tracking-[0.14em] text-white/70 uppercase" style="animation-delay: 80ms">
+            {{ t('hero.pm') }} <TermHint term="pm25" glass />
           </p>
-          <div class="animate-rise mt-2 flex items-end gap-4" style="animation-delay: 140ms">
+          <div class="animate-rise mt-2 flex items-end gap-4" style="animation-delay: 140ms" data-tour="hero">
             <span class="text-[7rem] leading-[0.85] font-extralight tracking-tight drop-shadow-sm sm:text-[10rem]">
               {{ formatNumber(shownPm ?? status.pm2_5, lang) }}
             </span>
@@ -103,11 +107,11 @@ const windArrow = computed(() => (props.windDir == null ? 0 : (props.windDir + 1
           </div>
 
           <p class="animate-rise mt-6 max-w-xl text-lg leading-relaxed text-white/90" style="animation-delay: 260ms">
-            {{ t(`advice.${status.level}`) }}
+            {{ t(sensitive ? `adviceSensitive.${status.level}` : `advice.${status.level}`) }}
           </p>
           <p class="animate-rise mt-2 text-sm text-white/70" style="animation-delay: 300ms">
             {{ who > 1 ? t('hero.whoTimes', { value: formatNumber(who, lang) }) : t('hero.whoBelow') }} ·
-            {{ t('hero.who') }}
+            {{ t('hero.who') }} <TermHint term="who" glass />
           </p>
 
           <div class="animate-rise mt-8 flex flex-wrap items-center gap-3" style="animation-delay: 340ms">

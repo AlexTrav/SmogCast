@@ -2,6 +2,7 @@
 import { Footprints, Wind } from 'lucide-vue-next'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useSensitive } from '../../composables/useSensitive'
 import type { AppLocale } from '../../types'
 import { LEVEL_COLOR } from '../../utils/aqi'
 import { formatHour, formatNumber } from '../../utils/format'
@@ -19,8 +20,11 @@ const kinds = computed(() => [
   { key: 'air' as const, icon: Wind, title: t('outlook.air'), note: t('outlook.airNote') },
 ])
 
-// вредный воздух даже в лучшие часы – честно говорим, что лучше переждать
-const harmful = (w: Window) => ['unhealthy', 'very_unhealthy', 'hazardous'].includes(w.level)
+// вредный воздух даже в лучшие часы – честно говорим, что лучше переждать; чувствительным – уже с уровня
+// «вредно для чувствительных»
+const { sensitive } = useSensitive()
+const harmful = (w: Window) =>
+  [...(sensitive.value ? ['sensitive'] : []), 'unhealthy', 'very_unhealthy', 'hazardous'].includes(w.level)
 const span = (w: Window, kind: 'walk' | 'air') =>
   kind === 'air' ? formatHour(w.start, lang.value) : `${formatHour(w.start, lang.value)}–${formatHour(w.end, lang.value)}`
 </script>

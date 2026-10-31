@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChartSpline, ChevronDown } from 'lucide-vue-next'
+import { ChartSpline, ChevronDown, Compass } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api } from '../api/client'
@@ -11,13 +11,18 @@ import ForecastDetails from '../components/home/ForecastDetails.vue'
 import HourlyStrip from '../components/home/HourlyStrip.vue'
 import LevelScale from '../components/home/LevelScale.vue'
 import SkyHero from '../components/home/SkyHero.vue'
+import TourGuide from '../components/home/TourGuide.vue'
+import TermHint from '../components/TermHint.vue'
 import { useLive } from '../composables/useLive'
+import { useSensitive } from '../composables/useSensitive'
 import type { Explain, Forecast, Weather } from '../types'
 import { localDay } from '../utils/format'
 import { dayOutlook, hoursOf } from '../utils/outlook'
 
 const { t } = useI18n()
 const { status } = useLive()
+const { sensitive } = useSensitive()
+const tour = ref<InstanceType<typeof TourGuide> | null>(null)
 
 // прогноз смеси по умолчанию: по нему карточки дней, лента и «когда выйти»; другие модели – в подробностях
 const main = ref<Forecast | null>(null)
@@ -62,9 +67,14 @@ const windDir = computed(() => weather.value?.values.wind_dir?.[0] ?? null)
       <div class="min-w-0 space-y-6 lg:col-span-2">
         <!-- прогноз простыми словами: сутки, лента по часам, подробности по кнопке -->
         <section class="card p-5 sm:p-7">
-          <h2 class="text-xl font-bold tracking-tight text-ink sm:text-2xl">{{ t('outlook.title') }}</h2>
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <h2 class="text-xl font-bold tracking-tight text-ink sm:text-2xl">{{ t('outlook.title') }}</h2>
+            <button class="inline-flex items-center gap-1.5 text-sm font-medium text-primary-strong hover:underline" @click="tour?.start()">
+              <Compass class="h-4 w-4" aria-hidden="true" />{{ t('tour.start') }}
+            </button>
+          </div>
           <p class="mt-1 max-w-2xl text-sm text-muted">{{ t('outlook.subtitle') }}</p>
-          <DayCards v-if="days.length" class="mt-5" :days="days" :selected="day" @select="day = $event" />
+          <DayCards v-if="days.length" class="mt-5" data-tour="days" :days="days" :selected="day" @select="day = $event" />
           <div v-else class="mt-5 grid gap-3 sm:grid-cols-3">
             <div v-for="i in 3" :key="i" class="h-44 animate-pulse rounded-2xl bg-surface-2" />
           </div>
@@ -72,7 +82,7 @@ const windDir = computed(() => weather.value?.values.wind_dir?.[0] ?? null)
           <HourlyStrip v-if="points.length" class="mt-2" :points="points" :now="current" :day="day" />
           <div v-else class="mt-2 h-32 animate-pulse rounded-2xl bg-surface-2" />
 
-          <button class="btn-ghost mt-5" :aria-expanded="expanded" aria-controls="details" @click="expanded = !expanded">
+          <button class="btn-ghost mt-5" data-tour="more" :aria-expanded="expanded" aria-controls="details" @click="expanded = !expanded">
             <ChartSpline class="h-4 w-4" aria-hidden="true" />
             {{ expanded ? t('outlook.less') : t('outlook.more') }}
             <ChevronDown class="h-4 w-4 transition-transform" :class="expanded ? 'rotate-180' : ''" aria-hidden="true" />
@@ -95,9 +105,21 @@ const windDir = computed(() => weather.value?.values.wind_dir?.[0] ?? null)
       </div>
 
       <div class="min-w-0 space-y-6">
-        <section class="card p-5 sm:p-6">
+        <section class="card p-5 sm:p-6" data-tour="best">
           <h2 class="text-lg font-bold tracking-tight text-ink">{{ t('outlook.windowsTitle') }}</h2>
           <p class="mt-1 text-sm text-muted">{{ t('outlook.windowsSubtitle') }}</p>
+          <!-- переключатель-тумблер: настоящий чекбокс (role="switch") спрятан, рисуется его «дорожка» -->
+          <label class="mt-4 flex cursor-pointer items-center justify-between gap-3 rounded-xl bg-surface-2 px-3.5 py-2.5">
+            <span>
+              <span class="block text-sm font-medium text-ink">{{ t('sensitive.label') }}</span>
+              <span class="block text-xs text-muted">{{ t('sensitive.hint') }}</span>
+            </span>
+            <input v-model="sensitive" type="checkbox" role="switch" class="peer sr-only" />
+            <span
+              class="relative h-6 w-11 shrink-0 rounded-full bg-line transition-colors peer-checked:bg-primary peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:after:translate-x-5"
+              aria-hidden="true"
+            />
+          </label>
           <div class="mt-4">
             <BestTimes v-if="days.length" :days="days" />
             <div v-else class="h-40 animate-pulse rounded-2xl bg-surface-2" />
@@ -112,7 +134,7 @@ const windDir = computed(() => weather.value?.values.wind_dir?.[0] ?? null)
           </div>
         </section>
         <section class="card p-5 sm:p-6">
-          <h2 class="text-lg font-bold tracking-tight text-ink">{{ t('forecast.scale') }}</h2>
+          <h2 class="flex items-center gap-2 text-lg font-bold tracking-tight text-ink">{{ t('forecast.scale') }} <TermHint term="aqi" /></h2>
           <p class="mt-1 text-sm text-muted">{{ t('forecast.scaleNote') }}</p>
           <div class="mt-4">
             <LevelScale v-if="status" :pm="status.pm2_5" />
@@ -120,5 +142,6 @@ const windDir = computed(() => weather.value?.values.wind_dir?.[0] ?? null)
         </section>
       </div>
     </div>
+    <TourGuide ref="tour" :ready="days.length > 0" />
   </div>
 </template>
