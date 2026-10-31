@@ -196,7 +196,8 @@ def fig_final(report: dict) -> None:
     ax.set_xlabel("MAE на тестовом году, мкг/м³")
     ax.xaxis.set_major_formatter(COMMA)
     ax.grid(axis="y", visible=False)
-    ax.legend(loc="lower right", title="горизонт")
+    ax.set_xlim(0, max(report["models"][k]["buckets"]["49–72"]["mae"] for k in keys) * 1.1)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.1), ncols=3, frameon=False, title="горизонт прогноза")
     save(fig, 23, "Итоговая ошибка моделей на отложенном тестовом году")
 
 
