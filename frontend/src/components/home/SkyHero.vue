@@ -6,13 +6,12 @@ import { useRoute } from 'vue-router'
 import { useCountUp } from '../../composables/useCountUp'
 import { useLive } from '../../composables/useLive'
 import type { AppLocale } from '../../types'
-import { aqiOf, hazeOpacity, levelOf, skyColors, WHO_24H } from '../../utils/aqi'
+import { aqiOf, levelOf, WHO_24H } from '../../utils/aqi'
 import { countdown, formatHour, formatNumber } from '../../utils/format'
 import { skyPhase, type SkyPhase, sunTimes } from '../../utils/sun'
 import LevelBadge from '../LevelBadge.vue'
 import AqiGauge from './AqiGauge.vue'
-import Mountains from './Mountains.vue'
-import SkyParticles from './SkyParticles.vue'
+import SkyScene from '../SkyScene.vue'
 
 // первый экран: небо над Алматы – цвет и дымка от текущего PM2.5, фаза (день, рассвет, закат, ночь) – по
 // настоящему восходу и закату в Алматы, частицы дрейфуют по прогнозу ветра
@@ -40,11 +39,6 @@ const sun = computed(() => sunTimes(now.value))
 
 const pm = computed(() => status.value?.pm2_5 ?? 0)
 const shownPm = useCountUp(computed(() => status.value?.pm2_5), 1100)
-const sky = computed(() => skyColors(status.value?.level ?? 'good', phase.value))
-const background = computed(
-  () => `linear-gradient(180deg, ${sky.value[0]} 0%, ${sky.value[1]} 55%, ${sky.value[2]} 100%)`,
-)
-const haze = computed(() => hazeOpacity(pm.value))
 const who = computed(() => pm.value / WHO_24H)
 const change = computed(() => {
   const c = status.value?.change_24h
@@ -56,22 +50,8 @@ const windArrow = computed(() => (props.windDir == null ? 0 : (props.windDir + 1
 </script>
 
 <template>
-  <section
-    class="relative isolate flex min-h-[860px] items-start overflow-hidden transition-[background] duration-1000 sm:min-h-[720px]"
-    :style="{ background }"
-  >
-    <!-- ночью – звёзды, сквозь смог их почти не видно -->
-    <div
-      v-if="phase === 'night'"
-      class="pointer-events-none absolute inset-0"
-      :style="{
-        opacity: Math.max(0.1, 0.8 - haze * 1.3),
-        backgroundImage:
-          'radial-gradient(1px 1px at 12% 18%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 32% 8%, #fff 50%, transparent 51%), radial-gradient(1.4px 1.4px at 58% 22%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 76% 12%, #fff 50%, transparent 51%), radial-gradient(1.2px 1.2px at 88% 28%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 45% 32%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 22% 36%, #fff 50%, transparent 51%)',
-      }"
-    />
-    <SkyParticles :pm="pm" :night="phase !== 'day'" :wind="wind" :wind-dir="windDir" />
-    <Mountains :haze="haze" :phase="phase" />
+  <section class="relative isolate flex min-h-[860px] items-start overflow-hidden sm:min-h-[720px]">
+    <SkyScene :pm="pm" :level="status?.level ?? 'good'" :phase="phase" :wind="wind" :wind-dir="windDir" />
 
     <div class="relative mx-auto grid w-full max-w-7xl gap-10 px-4 pt-28 pb-56 text-white sm:px-6 sm:pt-32 lg:grid-cols-[1fr_20rem]">
       <div>

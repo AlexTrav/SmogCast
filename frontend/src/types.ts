@@ -51,6 +51,14 @@ export interface Explain {
   weather: { ratio: (number | null)[]; mean_24h: number } | null
 }
 
+export interface DailyHistory {
+  start: string | null // первый день (местное время Алматы), YYYY-MM-DD
+  step: 'day'
+  timezone: string
+  hours: number[]
+  values: Record<string, { mean: (number | null)[]; max: (number | null)[] }>
+}
+
 export interface HourlyHistory {
   start: string | null
   step: 'hour'

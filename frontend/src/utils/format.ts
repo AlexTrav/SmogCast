@@ -33,6 +33,20 @@ export function formatDay(iso: string | Date, locale: AppLocale): string {
   return new Intl.DateTimeFormat(TAGS[locale], { day: 'numeric', month: 'short', timeZone: TZ }).format(date)
 }
 
+// «15 янв. 2023»
+export function formatDate(iso: string | Date, locale: AppLocale): string {
+  const date = new Date(iso)
+  const year = new Intl.DateTimeFormat('en-GB', { year: 'numeric', timeZone: TZ }).format(date)
+  return `${formatDay(date, locale)} ${year}`
+}
+
+// «15.01.2023» – подписи оси длинного ряда, одинаковые на всех языках
+export function formatShortDate(iso: string | Date): string {
+  return new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: TZ }).format(
+    new Date(iso),
+  )
+}
+
 // «31 окт., 20:00»
 export function formatDateHour(iso: string | Date, locale: AppLocale): string {
   return `${formatDay(iso, locale)}, ${formatHour(iso, locale)}`
