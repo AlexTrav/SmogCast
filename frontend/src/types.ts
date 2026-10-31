@@ -175,3 +175,17 @@ export interface Recompute {
   skipped: string[]
   models: RecomputeModel[]
 }
+
+// сетка CAMS 5x5 вокруг Алматы для карты: значения [час][широта][долгота], широты и долготы по возрастанию
+export interface Region {
+  issued_at: string
+  lats: number[]
+  lons: number[]
+  start: string
+  step: 'hour'
+  hours: number
+  pm2_5: (number | null)[][][]
+  pm10: (number | null)[][][]
+  wind: (number | null)[][][]
+  wind_dir: (number | null)[][][]
+}

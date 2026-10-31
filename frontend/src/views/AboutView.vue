@@ -33,7 +33,7 @@ onMounted(async () => {
 // цифры проекта: часы ряда считаются от 01.09.2022 до сейчас; автотесты – pytest (сбор и база 29,
 // исследование 11, модели 41, API 31) и Vitest сайта на момент последнего коммита
 const SERIES_START = Date.UTC(2022, 8, 1)
-const TESTS_TOTAL = 29 + 11 + 41 + 31 + 21
+const TESTS_TOTAL = 29 + 11 + 41 + 31 + 24
 const facts = computed(() => [
   { value: formatNumber(Math.floor((Date.now() - SERIES_START) / 3_600_000), lang.value, 0), label: t('about.factHours') },
   { value: '7', label: t('about.factModels') },
@@ -66,7 +66,7 @@ const bars = computed(() => {
 
 const stack = [
   'Python', 'pandas', 'statsmodels', 'Prophet', 'PyTorch', 'ONNX Runtime', 'Google Colab', 'FastAPI', 'PostgreSQL',
-  'Neon', 'Vue 3', 'TypeScript', 'Tailwind CSS 4', 'vue-i18n', 'Apache ECharts', 'Vite', 'Vitest', 'pytest',
+  'Neon', 'Vue 3', 'TypeScript', 'Tailwind CSS 4', 'vue-i18n', 'Apache ECharts', 'MapLibre GL', 'Vite', 'Vitest', 'pytest',
   'Docker', 'GitHub Actions', 'cron-job.org', 'Render', 'GitHub Pages', 'Open-Meteo', 'Copernicus CAMS',
 ]
 </script>

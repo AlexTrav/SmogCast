@@ -6,6 +6,7 @@ import type {
   ModelsReport,
   Performance,
   Recompute,
+  Region,
   Status,
   Verify,
   Weather,
@@ -89,6 +90,8 @@ export const api = {
   models: () => request<ModelsReport>('/api/models'),
   verify: (days = 7) => request<Verify>(`/api/verify?days=${days}`),
   performance: (hours = 48) => request<Performance>(`/api/performance?hours=${hours}`),
+  // сетка CAMS 5x5 для карты: сутки назад и 3 суток вперёд
+  region: () => request<Region>('/api/region'),
   // лёгкие модели заново на сервере; не чаще раза в 30 с (иначе ApiError too_often или busy)
   recompute: () => request<Recompute>('/api/recompute', TIMEOUT_MS, 'POST'),
 }

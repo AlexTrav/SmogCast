@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useWindowScroll } from '@vueuse/core'
-import { Activity, BrainCircuit, CalendarRange, Info, Moon, Radio, Sun } from 'lucide-vue-next'
+import { Activity, BrainCircuit, CalendarRange, Info, Map as MapIcon, Moon, Radio, Sun } from 'lucide-vue-next'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
@@ -19,6 +19,7 @@ const { locale, locales } = useLocale()
 const overSky = computed(() => route.name === 'home' && y.value < 40)
 const items = computed(() => [
   { to: '/', label: t('nav.now'), icon: Radio },
+  { to: '/map', label: t('nav.map'), icon: MapIcon },
   { to: '/history', label: t('nav.history'), icon: CalendarRange },
   { to: '/models', label: t('nav.models'), icon: BrainCircuit },
   { to: '/performance', label: t('nav.performance'), icon: Activity },
@@ -78,7 +79,7 @@ const items = computed(() => [
 
   <!-- нижняя навигация на телефоне -->
   <nav class="fixed inset-x-0 bottom-0 z-50 border-t border-line bg-bg/90 backdrop-blur-xl md:hidden">
-    <div class="grid grid-cols-5">
+    <div class="grid grid-cols-6">
       <RouterLink
         v-for="item in items"
         :key="item.to"

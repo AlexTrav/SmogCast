@@ -7,6 +7,7 @@ import LogoMark from './icons/LogoMark.vue'
 const { t } = useI18n()
 const sections = computed(() => [
   { to: '/', label: t('nav.now') },
+  { to: '/map', label: t('nav.map') },
   { to: '/history', label: t('nav.history') },
   { to: '/models', label: t('nav.models') },
   { to: '/performance', label: t('nav.performance') },

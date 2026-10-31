@@ -2,6 +2,7 @@ import type ru from './ru'
 
 const messages: typeof ru = {
   nav: {
+    map: 'Map',
     now: 'Now',
     history: 'History',
     models: 'Models',
@@ -82,6 +83,27 @@ const messages: typeof ru = {
     bandsNote: 'background – air levels',
     tipBand: 'most likely (80 %) {lo} to {hi}',
     unit: 'µg/m³',
+  },
+  map: {
+    eyebrow: 'Map',
+    title: 'Smog over the valley',
+    intro: 'How PM2.5 spreads over the Trans-Ili Alatau foothills: one day back and three days ahead, from the CAMS analysis and forecast. Tap a cell to see its value and wind; the map can be tilted and rotated.',
+    play: 'Play',
+    pause: 'Pause',
+    hour: 'Hour on the map',
+    past: 'past',
+    now: 'now',
+    future: 'CAMS forecast',
+    selected: 'At the selected hour',
+    cityCell: 'Almaty cell',
+    maxCell: 'Most polluted cell',
+    wind: 'wind {value} km/h',
+    legend: 'US AQI levels',
+    honest: 'A CAMS grid cell is 0.4° (about 45 × 33 km); the value is the model estimate for the whole cell, not a measurement in a district: the map cannot tell streets and yards apart. This is the CAMS forecast, not the SmogCast models.',
+    table: 'Values at the selected hour, µg/m³',
+    latLon: 'Latitude / longitude',
+    loading: 'Loading the map…',
+    noWebgl: 'The browser could not show the 3D map (no WebGL) – the values are in the table below.',
   },
   terms: {
     help: 'What is {term}?',
