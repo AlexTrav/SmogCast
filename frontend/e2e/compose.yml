@@ -1,0 +1,24 @@
+# браузерные тесты: собранный сайт (nginx) и Playwright рядом; адрес API в сборке – несуществующий
+# http://api.test, все запросы к нему тесты подменяют сохранёнными ответами (fixtures/), поэтому прогон не
+# зависит ни от Render, ни от погоды, ни от времени суток. make -C frontend e2e
+name: smogcast-e2e
+
+services:
+  site:
+    build:
+      context: ..
+      args:
+        VITE_API_BASE_URL: http://api.test
+        BASE: /
+
+  e2e:
+    build: .
+    environment:
+      BASE_URL: http://site
+      CI: ${CI:-}
+    volumes:
+      # эталонные скриншоты и отчёт о падениях – на хосте (make e2e-update перезаписывает эталоны)
+      - ./snapshots:/e2e/snapshots
+      - ./test-results:/e2e/test-results
+    depends_on:
+      - site

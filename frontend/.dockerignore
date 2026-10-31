@@ -1,2 +1,4 @@
 node_modules
 dist
+# браузерные тесты – свой образ (e2e/Dockerfile)
+e2e

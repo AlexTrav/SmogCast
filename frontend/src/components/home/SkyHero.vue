@@ -25,8 +25,11 @@ const { t, locale } = useI18n()
 const lang = computed(() => locale.value as AppLocale)
 const { status: live, now, next, updating } = useLive()
 const { sensitive } = useSensitive()
-// «Обновить сейчас» – пересчёт быстрых моделей на сервере и свежее состояние; результат – плашкой ниже
+// «Пересчитать прогноз» – быстрые модели заново на сервере и свежее состояние; результат – плашкой ниже
 const { result: recomputed, running, problem, wait, run: recompute, close: closeRecompute, modelsMs, diff } = useRecompute()
+// миллисекунды – пока меньше секунды, дальше секунды: «0,00 с» ничего не говорит
+const duration = (ms: number) =>
+  ms < 1000 ? t('recompute.msShort', { n: formatNumber(ms, lang.value, 1) }) : t('recompute.sec', { n: formatNumber(ms / 1000, lang.value, 2) })
 const route = useRoute()
 
 // предпросмотр для показа: ?sky=day|dawn|dusk|night и ?pm=… подменяют фазу неба и PM2.5 (данные API не меняются)
@@ -225,7 +228,7 @@ const aboveCity = computed(() => {
             </button>
           </div>
 
-          <!-- результат «Обновить сейчас»: время каждой быстрой модели и сравнение с ежечасным расчётом -->
+          <!-- результат «Пересчитать прогноз»: свежесть данных, время каждой быстрой модели, сравнение с ежечасным -->
           <div
             v-if="recomputed || problem"
             class="mt-4 max-w-xl rounded-2xl bg-black/25 p-4 text-sm ring-1 ring-white/15 backdrop-blur-md"
@@ -238,7 +241,7 @@ const aboveCity = computed(() => {
               </p>
               <p v-else-if="recomputed" class="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <CircleCheck class="h-4 w-4 shrink-0 text-emerald-300" aria-hidden="true" />
-                <span class="font-semibold">{{ t('recompute.done', { s: formatNumber(modelsMs / 1000, lang, 2) }) }}</span>
+                <span class="font-semibold">{{ t('recompute.done', { time: duration(modelsMs) }) }}</span>
                 <TermHint term="recompute" glass />
               </p>
               <button class="rounded-full p-1 text-white/70 hover:bg-white/15 hover:text-white" :aria-label="t('recompute.close')" @click="closeRecompute">
@@ -246,6 +249,8 @@ const aboveCity = computed(() => {
               </button>
             </div>
             <template v-if="recomputed && !problem">
+              <!-- честно: новый час данных приходит раз в час, до него цифра на сайте не изменится -->
+              <p class="mt-2 text-white/85">{{ t('recompute.fresh', { time: formatHour(recomputed.issued_at, lang), next: formatHour(next, lang) }) }}</p>
               <ul class="mt-3 flex flex-wrap gap-2">
                 <li
                   v-for="m in recomputed.models.filter((x) => x.ms != null)"
@@ -261,7 +266,7 @@ const aboveCity = computed(() => {
                 <TermHint v-if="diff != null" term="match" glass />
               </p>
               <p class="mt-1 text-white/70">
-                {{ t('recompute.total', { s: formatNumber(recomputed.total_ms / 1000, lang, 2) }) }}
+                {{ t('recompute.total', { time: duration(recomputed.total_ms) }) }}
                 <template v-if="recomputed.cached"> · {{ t('recompute.cached', { time: formatHour(recomputed.computed_at, lang) }) }}</template>
               </p>
             </template>

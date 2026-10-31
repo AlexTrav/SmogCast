@@ -1,4 +1,4 @@
-.PHONY: test build run dev lock shots stop clean
+.PHONY: test build run dev lock shots stop clean e2e e2e-update e2e-lock
 
 IMAGE := smogcast-frontend
 CONTAINER := smogcast-frontend
@@ -28,6 +28,20 @@ dev:
 # обновить package-lock.json после правки package.json (без node_modules на диске)
 lock:
 	docker run --rm -v "$(CURDIR):/app" -w /app node:24-alpine npm install --package-lock-only --no-audit --no-fund
+
+# браузерные тесты Playwright: собранный сайт и Chromium в docker compose, API подменён сохранёнными ответами
+# (e2e/fixtures); упавшие тесты – трассы и скриншоты в e2e/test-results
+E2E := docker compose -f e2e/compose.yml
+e2e:
+	$(E2E) run --rm --build e2e; status=$$?; $(E2E) down; exit $$status
+
+# переснять эталонные скриншоты после намеренной правки дизайна (e2e/snapshots)
+e2e-update:
+	$(E2E) run --rm --build e2e npx playwright test visual --update-snapshots; status=$$?; $(E2E) down; exit $$status
+
+# обновить e2e/package-lock.json после правки e2e/package.json
+e2e-lock:
+	docker run --rm -v "$(CURDIR)/e2e:/e2e" -w /e2e mcr.microsoft.com/playwright:v1.49.1-noble npm install --package-lock-only --no-audit --no-fund
 
 stop:
 	docker stop $(CONTAINER)
