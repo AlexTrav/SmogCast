@@ -1,4 +1,4 @@
-.PHONY: build baselines arima-orders arima prophet weather lstm select final figures test
+.PHONY: build baselines arima-orders arima prophet weather lstm select final live figures test
 
 IMAGE := smogcast-model
 
@@ -59,3 +59,9 @@ figures: build
 # pytest каркаса проверки и моделей (без ряда и сети)
 test: build
 	$(RUN) python -m pytest -q -p no:cacheprovider tests
+
+# живые прогнозы вручную: все модели от последнего часа ряда в базе -> model_forecasts (по расписанию –
+# GitHub Actions); строка подключения – из SmogCast/.env
+live: build
+	docker run --rm --env-file "$(CURDIR)/../.env" -v "$(CURDIR):/model" -v "$(CURDIR)/../research:/research:ro" \
+		$(IMAGE) python -W ignore live.py

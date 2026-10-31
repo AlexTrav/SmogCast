@@ -4,5 +4,7 @@ statsmodels==0.15.0
 prophet==1.5.0
 # вывод LSTM, обученной в Colab (artifacts/*.onnx)
 onnxruntime==1.31.1
+# живые прогнозы: чтение ряда и запись прогнозов в Postgres (live.py)
+psycopg[binary]==3.3.6
 # тесты каркаса проверки и моделей (make test)
 pytest==9.2.0

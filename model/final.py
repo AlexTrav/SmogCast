@@ -46,6 +46,7 @@ BLENDS = {
     "arima+lstm+lstm_weather": ("arima", "lstm", "lstm_weather"),
 }
 HEAVY = ("arima", "prophet")  # считаются недельными блоками параллельно
+LIVE = ("seasonal_24", "profile_7d", "arima", "prophet", "lstm", "lstm_weather")  # модели живых прогнозов
 EXAMPLE_ORIGIN = {"validation": "2025-01-15 18:00", "test": "2026-01-15 18:00"}
 
 
@@ -138,6 +139,11 @@ def final(series: pd.Series, selection: dict) -> dict:
                                             for b, bounds in backtest.BUCKETS.items()}
     best = results[default]
     report["confusion_24h"] = aqi.confusion(np.exp(best.actual[:, 23]), np.exp(best.pred[:, 23])).tolist()
+    # интервалы живых прогнозов (model/live.py) – по ошибкам на тестовом году, самой свежей честной оценке
+    quantiles = {key: {str(level): [np.round(low, 4).tolist(), np.round(high, 4).tolist()]
+                       for level, (low, high) in backtest.interval_quantiles(results[key], LEVELS).items()}
+                 for key in LIVE + (default,)}
+    (REPORTS / "quantiles.json").write_text(json.dumps(quantiles, indent=1), encoding="utf-8")
     origin = pd.Timestamp(EXAMPLE_ORIGIN["test"], tz=prep.TZ)
     i = int(np.where(best.origins == origin)[0][0])
     report["example"] = {"origin": origin.isoformat(), "name": best.name,

@@ -89,10 +89,13 @@ class LstmModel:
     опубликованный к моменту прогноза (weather.future)."""
 
     # mode – режим обучения (папка artifacts/<mode>): validation – до 01.10.2024, test – до 01.10.2025, live – все данные
+    # future_weather(origin, horizon, variables) – источник прогноза погоды: по умолчанию архив прошлых прогнозов
+    # (проверка на истории), вживую – последний снимок прогноза из базы
     def __init__(self, variant: str = "lstm", directory: Path | None = None, frame: pd.DataFrame | None = None,
-                 mode: str = "validation") -> None:
+                 mode: str = "validation", future_weather=weather.future) -> None:
         import onnxruntime as ort  # только там, где модель реально считает
 
+        self.future_weather = future_weather
         directory = directory or ARTIFACTS / mode
         meta = json.loads((directory / f"{variant}.json").read_text(encoding="utf-8"))
         self.name, self.norm, self.variables = meta["name"], meta["norm"], tuple(meta["weather"])
@@ -113,7 +116,7 @@ class LstmModel:
         origin = index[-1]
         times = pd.date_range(origin + pd.Timedelta(hours=1), periods=HORIZON, freq="h")
         past_weather = actual_weather(self.frame.loc[index], self.variables) if self.variables else None
-        future_weather = weather.future(origin, HORIZON, self.variables) if self.variables else None
+        future_weather = self.future_weather(origin, HORIZON, self.variables) if self.variables else None
         delta = self.session.run(None, {
             "past": past_features(log_pm, index, past_weather, self.norm)[None],
             "future": future_features(times, future_weather, self.norm)[None],

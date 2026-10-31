@@ -18,7 +18,7 @@ START = pd.Timestamp(START_DATE).tz_localize("UTC")
 def conn():
     with db.connect(URL) as conn:
         with conn.cursor() as cur:
-            cur.execute("drop table if exists series, cams_forecasts, weather_forecasts, runs, region")
+            cur.execute("drop table if exists series, cams_forecasts, weather_forecasts, runs, region, model_forecasts, model_runs")
         conn.commit()
         db.init_schema(conn)
         yield conn
@@ -55,7 +55,7 @@ def runs(conn) -> list[tuple]:
 
 def test_schema_is_idempotent(conn):
     db.init_schema(conn)
-    assert db.counts(conn) == {"series": 0, "cams_forecasts": 0, "weather_forecasts": 0, "runs": 0, "region": 0}
+    assert db.counts(conn) == {"series": 0, "cams_forecasts": 0, "weather_forecasts": 0, "runs": 0, "region": 0, "model_forecasts": 0, "model_runs": 0}
 
 
 def test_upsert_series_updates_overlap_without_duplicates(conn):
@@ -101,7 +101,7 @@ def test_hourly_adds_hours_and_snapshots(conn, monkeypatch):
     # повтор в тот же час (ручной запуск или задержка cron) ничего не дублирует
     again = live.hourly(conn, now + timedelta(minutes=10))
     assert again["hours_added"] == 0 and again["cams_rows"] == 0
-    assert db.counts(conn) == {"series": 3 * 24 + 6, "cams_forecasts": 120, "weather_forecasts": 120, "runs": 2, "region": 6}
+    assert db.counts(conn) == {"series": 3 * 24 + 6, "cams_forecasts": 120, "weather_forecasts": 120, "runs": 2, "region": 6, "model_forecasts": 0, "model_runs": 0}
 
     later = live.hourly(conn, now + timedelta(hours=2))
     assert later["hours_added"] == 2
@@ -151,7 +151,7 @@ def test_cleanup_deletes_only_old_snapshots_over_limit(conn):
 
     # порог заведомо ниже размера пустой базы: удаляется всё, кроме снимков моложе 14 дней
     assert db.cleanup(conn, now, limit_mb=1, keep_days=14) == 2 * 2 * 120
-    assert db.counts(conn) == {"series": 48, "cams_forecasts": 120, "weather_forecasts": 120, "runs": 0, "region": 0}
+    assert db.counts(conn) == {"series": 48, "cams_forecasts": 120, "weather_forecasts": 120, "runs": 0, "region": 0, "model_forecasts": 0, "model_runs": 0}
     assert db.cleanup(conn, now, limit_mb=1, keep_days=14) == 0
 
 

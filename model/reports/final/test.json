@@ -333,10 +333,6 @@
      "width80": 5.6927,
      "cover95": 0.9564,
      "width95": 10.7031,
-     "native_cover80": 0.9071,
-     "native_width80": 8.0406,
-     "native_cover95": 0.9686,
-     "native_width95": 12.385,
      "skill": 0.7645
     },
     "6": {
@@ -347,10 +343,6 @@
      "width80": 17.6884,
      "cover95": 0.9442,
      "width95": 30.5252,
-     "native_cover80": 0.791,
-     "native_width80": 18.3688,
-     "native_cover95": 0.9276,
-     "native_width95": 29.2439,
      "skill": 0.2197
     },
     "12": {
@@ -361,10 +353,6 @@
      "width80": 20.0677,
      "cover95": 0.9519,
      "width95": 34.3862,
-     "native_cover80": 0.7974,
-     "native_width80": 20.6462,
-     "native_cover95": 0.9282,
-     "native_width95": 33.2221,
      "skill": 0.1248
     },
     "24": {
@@ -375,10 +363,6 @@
      "width80": 20.3846,
      "cover95": 0.9558,
      "width95": 35.1673,
-     "native_cover80": 0.8096,
-     "native_width80": 21.4002,
-     "native_cover95": 0.9327,
-     "native_width95": 34.5659,
      "skill": 0.1193
     },
     "48": {
@@ -389,10 +373,6 @@
      "width80": 20.7187,
      "cover95": 0.9513,
      "width95": 36.5077,
-     "native_cover80": 0.7942,
-     "native_width80": 21.7737,
-     "native_cover95": 0.9282,
-     "native_width95": 35.2337,
      "skill": 0.159
     },
     "72": {
@@ -403,10 +383,6 @@
      "width80": 21.6952,
      "cover95": 0.9468,
      "width95": 36.5719,
-     "native_cover80": 0.7955,
-     "native_width80": 22.0597,
-     "native_cover95": 0.9276,
-     "native_width95": 35.7526,
      "skill": 0.1513
     }
    },
@@ -419,10 +395,6 @@
      "width80": 19.3011,
      "cover95": 0.9495,
      "width95": 32.5474,
-     "native_cover80": 0.8106,
-     "native_width80": 19.8921,
-     "native_cover95": 0.9333,
-     "native_width95": 31.9004,
      "skill": 0.2044
     },
     "25–48": {
@@ -433,10 +405,6 @@
      "width80": 22.2842,
      "cover95": 0.9515,
      "width95": 37.9124,
-     "native_cover80": 0.8035,
-     "native_width80": 22.4828,
-     "native_cover95": 0.926,
-     "native_width95": 36.3541,
      "skill": 0.17
     },
     "49–72": {
@@ -447,10 +415,6 @@
      "width80": 22.6714,
      "cover95": 0.9493,
      "width95": 38.0433,
-     "native_cover80": 0.7978,
-     "native_width80": 22.7988,
-     "native_cover95": 0.9253,
-     "native_width95": 36.9239,
      "skill": 0.1681
     }
    }

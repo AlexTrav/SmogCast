@@ -9,8 +9,9 @@ from .config import COLUMNS, WEATHER_VARS
 
 CAMS_COLUMNS = ["pm2_5", "pm10"]
 WEATHER_COLUMNS = list(WEATHER_VARS.values())
-# таблицы, которые можно чистить по размеру базы (ряд и журнал не чистятся никогда)
 SNAPSHOT_TABLES = {"cams_forecasts": CAMS_COLUMNS, "weather_forecasts": WEATHER_COLUMNS}
+# таблицы, которые можно чистить по размеру базы (ряд и журналы не чистятся никогда)
+CLEAN_TABLES = (*SNAPSHOT_TABLES, "model_forecasts")
 REGION_COLUMNS = ["pm2_5", "pm10", "wind", "wind_dir"]
 
 SCHEMA = f"""
@@ -55,6 +56,29 @@ create table if not exists region (
     issued_at timestamptz not null,
     {", ".join(f"{c} double precision" for c in REGION_COLUMNS)},
     primary key (lat, lon, time)
+);
+-- прогнозы наших моделей (пишет model/live.py): issued_at – последний час ряда, от которого строился прогноз;
+-- pred и границы интервалов 80 % и 95 % – в мкг/м³; по ним сайт строит журнал «прогноз -> факт»
+create table if not exists model_forecasts (
+    issued_at timestamptz not null,
+    model text not null,
+    time timestamptz not null,
+    pred double precision not null,
+    lo80 double precision,
+    hi80 double precision,
+    lo95 double precision,
+    hi95 double precision,
+    primary key (issued_at, model, time)
+);
+-- журнал расчёта прогнозов: время каждой модели (мс) – для страницы «Производительность»
+create table if not exists model_runs (
+    id bigserial primary key,
+    started_at timestamptz not null,
+    issued_at timestamptz,
+    duration_ms integer not null,
+    model_ms jsonb,
+    status text not null,
+    error text
 );
 """
 
@@ -142,9 +166,9 @@ def db_size_mb(conn: psycopg.Connection) -> float:
         return cur.fetchone()[0] / 2**20
 
 
-# очистка по размеру: если база больше limit_mb, удаляются самые старые снимки прогнозов, пока оценка размера
-# не опустится до 80 % порога (запас, чтобы очистка не срабатывала каждый час); снимки моложе keep_days
-# не удаляются никогда; возвращает число удалённых строк
+# очистка по размеру: если база больше limit_mb, удаляются самые старые снимки прогнозов (CAMS, погоды и наших
+# моделей), пока оценка размера не опустится до 80 % порога (запас, чтобы очистка не срабатывала каждый час);
+# снимки моложе keep_days не удаляются никогда; возвращает число удалённых строк
 def cleanup(conn: psycopg.Connection, now: pd.Timestamp, limit_mb: float, keep_days: int) -> int:
     size = db_size_mb(conn)
     if size <= limit_mb:
@@ -153,7 +177,7 @@ def cleanup(conn: psycopg.Connection, now: pd.Timestamp, limit_mb: float, keep_d
     protect = (now - timedelta(days=keep_days)).to_pydatetime()
     weight: dict = {}  # issued_at -> оценка байт, которые освободит удаление этого снимка во всех таблицах
     with conn.cursor() as cur:
-        for table in SNAPSHOT_TABLES:
+        for table in CLEAN_TABLES:
             cur.execute(f"select pg_total_relation_size('{table}'), count(*) from {table}")
             total, rows = cur.fetchone()
             if not rows:
@@ -170,7 +194,7 @@ def cleanup(conn: psycopg.Connection, now: pd.Timestamp, limit_mb: float, keep_d
         return 0
     deleted = 0
     with conn.cursor() as cur:
-        for table in SNAPSHOT_TABLES:
+        for table in CLEAN_TABLES:
             cur.execute(f"delete from {table} where issued_at <= %s", (cutoff,))
             deleted += cur.rowcount
     conn.commit()
@@ -178,7 +202,7 @@ def cleanup(conn: psycopg.Connection, now: pd.Timestamp, limit_mb: float, keep_d
     # (vacuum нельзя выполнять внутри транзакции)
     conn.autocommit = True
     try:
-        for table in SNAPSHOT_TABLES:
+        for table in CLEAN_TABLES:
             conn.execute(f"vacuum full {table}")
     finally:
         conn.autocommit = False
@@ -212,7 +236,8 @@ def log_run(conn: psycopg.Connection, **fields) -> None:
 def counts(conn: psycopg.Connection) -> dict[str, int]:
     out = {}
     with conn.cursor() as cur:
-        for table in ["series", "cams_forecasts", "weather_forecasts", "runs", "region"]:
+        for table in ["series", "cams_forecasts", "weather_forecasts", "runs", "region", "model_forecasts",
+                      "model_runs"]:
             cur.execute(f"select count(*) from {table}")
             out[table] = cur.fetchone()[0]
     return out
