@@ -10,7 +10,8 @@ services:
     dockerfilePath: ./backend/Dockerfile
     dockerContext: .
     healthCheckPath: /api/health
-    autoDeployTrigger: commit
+    # выкладка – только когда CI на этом коммите зелёный (.github/workflows/ci.yml)
+    autoDeployTrigger: checksPass
     # пересобирать только при изменении API, отчётов моделей или лёгких моделей для пересчёта
     buildFilter:
       paths:

@@ -1,12 +1,12 @@
-# собирает сайт и публикует его на GitHub Pages при каждом push в main, который затрагивает фронтенд
+# собирает сайт и публикует его на GitHub Pages – только после успешного CI (все автотесты зелёные) по push в
+# main; вручную – кнопкой Run workflow. Автотесты сайта уже прошли в CI, здесь – только сборка и выкладка
 name: Deploy site to GitHub Pages
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
-    paths:
-      - "frontend/**"
-      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:
@@ -24,14 +24,19 @@ env:
 
 jobs:
   build:
+    # после CI – только если он успешен и запущен push-ем (не pull request)
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     steps:
+      # ровно тот коммит, который проверил CI
       - uses: actions/checkout@v4
-      # та же стадия сборки, что в frontend/Dockerfile: автотесты, проверка типов и Vite с базовым путём /SmogCast/
-      - name: Test and build in Docker
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      # та же стадия сборки, что в frontend/Dockerfile: проверка типов и Vite с базовым путём /SmogCast/
+      - name: Build in Docker
         run: |
-          docker build --target test -t smogcast-test frontend
-          docker run --rm smogcast-test
           docker build --target build \
             --build-arg VITE_API_BASE_URL="$VITE_API_BASE_URL" \
             --build-arg BASE="/${{ github.event.repository.name }}/" \

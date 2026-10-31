@@ -7,6 +7,8 @@ Vue 3 + TypeScript + Tailwind CSS 4 + vue-i18n (русский, казахски
 ```bash
 make dev     # dev-сервер на http://localhost:5173 с горячей перезагрузкой
 make test    # автотесты Vitest
+make e2e     # браузерные тесты Playwright (e2e/), около 1,5 минуты
+make e2e-update  # переснять эталонные скриншоты после намеренной правки дизайна
 make run     # собранный сайт (nginx) на http://localhost:8080
 make lock    # обновить package-lock.json после правки package.json
 ```

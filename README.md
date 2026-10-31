@@ -41,17 +41,34 @@
 ```bash
 make data    # дописать свежие часы ряда и проверить его
 make check   # проверить ряд
-make test    # автотесты
+make test    # автотесты: сбор данных, исследование, модели, API, сайт
 make api     # API локально на http://localhost:8000/docs
 make site    # сайт локально на http://localhost:5173
 ```
+
+## Тесты и CI
+
+| Часть | Что проверяется | Тестов | Команда |
+|---|---|---|---|
+| data | сбор и проверка ряда, запись в базу (Postgres 18 в compose) | 29 | `make -C data test` |
+| research | подготовка ряда, сбой CAMS, сезоны | 11 | `make -C research test` |
+| model | честная проверка, все модели, живые прогнозы | 41 | `make -C model test` |
+| backend | все точки API, кэш и 304, пересчёт и защита (Postgres 18 в compose) | 31 | `make -C backend test` |
+| frontend | расчёты сайта, переводы и подсказки на трёх языках (Vitest) | 31 | `make -C frontend test` |
+| frontend/e2e | сайт в браузере: страницы, кнопки, подсказки, скриншот-тесты (Playwright) | 23 | `make -C frontend e2e` |
+
+[CI](.github/workflows/ci.yml) на каждый push и pull request гоняет первые пять наборов параллельно в тех же
+Docker-образах. Сайт на GitHub Pages и API на Render выкладываются только после зелёного CI. Браузерные тесты
+запускаются локально перед правками интерфейса; эталонные скриншоты – `make -C frontend e2e-update`.
 
 ## Структура
 
 ```
 SmogCast/
   data/      – сбор и проверка ряда, сам ряд (series/almaty.csv), запись в базу
-  .github/workflows/hourly.yml – ежечасное обновление базы
+  .github/workflows/hourly.yml – ежечасное обновление базы (запускает cron-job.org)
+  .github/workflows/ci.yml     – автотесты на каждый push
+  .github/workflows/pages.yml  – выкладка сайта после зелёного CI
   research/  – исследование ряда: статистика (results/), рисунки для отчёта
   model/     – каркас проверки, модели прогноза, отчёты с метриками (reports/)
   backend/   – API на FastAPI: только чтение базы для сайта и пересчёт быстрых моделей

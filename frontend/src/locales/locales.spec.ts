@@ -41,6 +41,6 @@ describe('переводы', () => {
   })
 
   it('в текстах нет длинного тире', () => {
-    for (const tree of [ru, kk, en]) expect(JSON.stringify(tree)).not.toContain('—')
+    for (const tree of [ru, kk, en]) expect(JSON.stringify(tree)).not.toContain(String.fromCharCode(0x2014))
   })
 })
