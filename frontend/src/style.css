@@ -62,7 +62,6 @@
 
 @theme {
   --font-sans: 'Onest Variable', system-ui, sans-serif;
-  --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
 
   --color-bg: var(--bg);
   --color-surface: var(--surface);
@@ -131,8 +130,9 @@ body {
   .eyebrow {
     @apply text-xs font-semibold tracking-[0.14em] text-faint uppercase;
   }
+  /* цифры в таблицах и плитках – тем же шрифтом, но одинаковой ширины, чтобы столбцы не прыгали */
   .num {
-    @apply font-mono tabular-nums;
+    @apply tabular-nums;
   }
   .chip {
     @apply inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1 text-sm text-muted;

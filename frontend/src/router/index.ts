@@ -9,7 +9,7 @@ const router = createRouter({
   routes: [
     { path: '/', name: 'home', component: HomeView },
     { path: '/history', name: 'history', component: () => import('../views/HistoryView.vue') },
-    { path: '/models', name: 'models', component: soon },
+    { path: '/models', name: 'models', component: () => import('../views/ModelsView.vue') },
     { path: '/performance', name: 'performance', component: soon },
     { path: '/about', name: 'about', component: soon },
     { path: '/:pathMatch(.*)*', redirect: '/' },

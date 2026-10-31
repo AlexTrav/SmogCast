@@ -14,6 +14,9 @@ export const MODEL_VAR: Record<string, string> = {
   seasonal_24: '--series-7',
 }
 
+// модели и смеси, у которых нет своего цвета (базовая «как час назад», запасные смеси, прогноз CAMS) – нейтральные
+export const REFERENCE = 'cams'
+
 export function modelColor(key: string): string {
   return `var(${MODEL_VAR[key] ?? '--faint'})`
 }

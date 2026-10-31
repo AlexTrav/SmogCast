@@ -1,7 +1,6 @@
 import { createApp } from 'vue'
-// шрифты – локально, без запросов к Google Fonts; в обоих есть все казахские буквы (проверено по глифам)
+// шрифт – локально, без запросов к Google Fonts; в нём есть все казахские буквы (проверено по глифам)
 import '@fontsource-variable/onest'
-import '@fontsource-variable/geist-mono'
 import App from './App.vue'
 import { vReveal } from './directives/reveal'
 import { i18n, initialLocale } from './i18n'

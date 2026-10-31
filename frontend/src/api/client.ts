@@ -1,4 +1,4 @@
-import type { DailyHistory, Explain, Forecast, HourlyHistory, Status, Weather } from '../types'
+import type { DailyHistory, Explain, Forecast, HourlyHistory, ModelsReport, Status, Verify, Weather } from '../types'
 
 // адрес API: в dev – .env.development, в сборке – аргумент Docker (по умолчанию API на Render)
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://smogcast-backend.onrender.com'
@@ -67,4 +67,6 @@ export const api = {
   days: () => request<DailyHistory>('/api/history?step=day'),
   weather: () => request<Weather>('/api/weather'),
   explain: () => request<Explain>('/api/explain'),
+  models: () => request<ModelsReport>('/api/models'),
+  verify: (days = 7) => request<Verify>(`/api/verify?days=${days}`),
 }
