@@ -1,0 +1,25 @@
+# Render Blueprint: API SmogCast (бесплатный план, Франкфурт – рядом с базой Neon).
+# Строка подключения DATABASE_URL – пользователь базы только для чтения (make -C backend readonly ->
+# SmogCast/.env.api); Render спрашивает её один раз при создании сервиса
+services:
+  - type: web
+    name: smogcast-api
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    # пересобирать только при изменении API или отчётов моделей
+    buildFilter:
+      paths:
+        - backend/**
+        - model/reports/**
+        - .dockerignore
+        - render.yaml
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        value: "*"

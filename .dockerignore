@@ -1,0 +1,8 @@
+# сборки из корня репозитория (образ API: backend/Dockerfile, Render) – в контекст идут только код API и отчёты моделей;
+# образы data и model собираются из своих папок, этот файл на них не влияет
+*
+!backend/requirements.txt
+!backend/api
+!backend/tests
+!model/reports
+**/__pycache__

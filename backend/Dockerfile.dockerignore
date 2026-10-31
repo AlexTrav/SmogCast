@@ -1,7 +1,0 @@
-# контекст сборки – весь репозиторий; в образ идут только код API и отчёты моделей
-*
-!backend/requirements.txt
-!backend/api
-!backend/tests
-!model/reports
-**/__pycache__

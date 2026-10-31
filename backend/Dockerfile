@@ -1,4 +1,5 @@
-# образ API; собирается из корня репозитория (make build, Render): нужны код api и отчёты model/reports
+# образ API; собирается из корня репозитория (make build, Render, состав контекста – .dockerignore):
+# нужны код api и отчёты model/reports
 FROM python:3.12-slim
 
 WORKDIR /app
