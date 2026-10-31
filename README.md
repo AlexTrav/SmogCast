@@ -17,11 +17,12 @@
 Проект в работе. Готово:
 
 - сбор почасового ряда PM2.5, других загрязнителей и погоды с 01.09.2022 из Open-Meteo,
-  инкрементальное обновление и проверка ряда – [data/](data/README.md).
+  инкрементальное обновление и проверка ряда – [data/](data/README.md);
+- исследование ряда: сезонность, тренды, аномалии, стационарность, связь с погодой,
+  однородность источников – [research/](research/README.md).
 
-Дальше: исследование ряда (сезонность, тренды, аномалии), честная проверка моделей
-(скользящий бэктест, наивные базовые модели), ARIMA, Prophet, LSTM, бэкенд FastAPI,
-дашборд на Vue, деплой.
+Дальше: честная проверка моделей (скользящий бэктест, наивные базовые модели), ARIMA,
+Prophet, LSTM, бэкенд FastAPI, дашборд на Vue, деплой.
 
 ## Запуск
 
@@ -38,10 +39,11 @@ make test    # автотесты
 ```
 SmogCast/
   data/      – сбор и проверка ряда, сам ряд (series/almaty.csv)
+  research/  – исследование ряда: статистика (results/), рисунки для отчёта
   Makefile   – общие команды
 ```
 
 ## Данные
 
-Air quality data: CAMS / Copernicus, weather data: ERA5 / ECMWF, via
+Air quality data: CAMS / Copernicus, weather data: ECMWF IFS, via
 [Open-Meteo.com](https://open-meteo.com/) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)).

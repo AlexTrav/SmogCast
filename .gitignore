@@ -15,6 +15,9 @@ node_modules/
 dist/
 *.local
 
+# рисунки исследования собираются в папку отчёта (make -C research figures FIGURES=...)
+research/figures/
+
 # логи
 *.log
 
