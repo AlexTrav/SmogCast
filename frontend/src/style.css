@@ -1,0 +1,171 @@
+@import 'tailwindcss';
+
+/* тёмная тема – по классу .dark на <html> (ставит useTheme и инлайн-скрипт в index.html) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Палитра SmogCast «Небо над Алматы»: снежный туман и альпийская синева днём, ночное небо с огнями города –
+   в тёмной теме; акцент – закатный абрикос. Цвета графиков проверены валидатором скилла dataviz
+   (различимость при дальтонизме, яркость и насыщенность для своей темы) */
+:root {
+  --bg: #f3f6fa;
+  --surface: #ffffff;
+  --surface-2: #e9eff6;
+  --ink: #0c1a2e;
+  --muted: #4b5a70;
+  --faint: #7d8aa0;
+  --line: #d9e2ed;
+  --primary: #1f6fd1;
+  --primary-strong: #15539f;
+  --primary-soft: #dbe9fa;
+  --on-primary: #ffffff;
+  --accent: #e0702f;
+  --accent-soft: #fde6d6;
+
+  /* серии графиков: смесь по умолчанию, ARIMA, LSTM + погода, LSTM, Prophet, профиль, сезонная;
+     прогноз CAMS – нейтральной пунктирной линией цвета текста */
+  --series-1: #2f7be0;
+  --series-2: #f07d3a;
+  --series-3: #13a89e;
+  --series-4: #d9a21b;
+  --series-5: #d9579b;
+  --series-6: #3e9b4f;
+  --series-7: #7c5ce0;
+  --grid: #e3e9f1;
+  --axis: #c3cedb;
+}
+
+.dark {
+  --bg: #070e1a;
+  --surface: #0e1828;
+  --surface-2: #142236;
+  --ink: #e8eff8;
+  --muted: #a1b0c4;
+  --faint: #6f7f95;
+  --line: #1e2d43;
+  --primary: #5aa2f0;
+  --primary-strong: #8cc0f7;
+  --primary-soft: #14304f;
+  --on-primary: #06101e;
+  --accent: #ff9452;
+  --accent-soft: #3a2416;
+
+  --series-1: #3d86ea;
+  --series-2: #dd6f2e;
+  --series-3: #14998f;
+  --series-4: #b98a12;
+  --series-5: #cc5194;
+  --series-6: #3a9049;
+  --series-7: #8670ea;
+  --grid: #1a283c;
+  --axis: #2b3b52;
+}
+
+@theme {
+  --font-sans: 'Onest Variable', system-ui, sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-primary: var(--primary);
+  --color-primary-strong: var(--primary-strong);
+  --color-primary-soft: var(--primary-soft);
+  --color-on-primary: var(--on-primary);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+
+  /* уровни US AQI: шкала EPA в своих, более мягких тонах; цвет всегда идёт с иконкой и подписью */
+  --color-aqi-good: #2bb673;
+  --color-aqi-moderate: #e8c547;
+  --color-aqi-sensitive: #f2994a;
+  --color-aqi-unhealthy: #e5484d;
+  --color-aqi-very-unhealthy: #8e4ec6;
+  --color-aqi-hazardous: #7a1e3a;
+
+  --animate-rise: rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-pulse-ring: pulse-ring 2.2s ease-out infinite;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+html {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background: var(--bg);
+  min-height: 100dvh;
+}
+
+@layer components {
+  .card {
+    @apply rounded-3xl border border-line bg-surface shadow-[0_1px_2px_rgb(12_26_46/0.04),0_8px_24px_-12px_rgb(12_26_46/0.10)];
+  }
+  .eyebrow {
+    @apply text-xs font-semibold tracking-[0.14em] text-faint uppercase;
+  }
+  .num {
+    @apply font-mono tabular-nums;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1 text-sm text-muted;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 rounded-full border border-line px-4 py-2 text-sm font-medium text-ink transition-colors hover:border-primary hover:text-primary-strong;
+  }
+}
+
+/* появление блоков при прокрутке (директива v-reveal) */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity 0.7s ease,
+    transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition-delay: calc(var(--reveal-i, 0) * 70ms);
+}
+[data-reveal='visible'] {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
