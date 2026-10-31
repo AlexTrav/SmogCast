@@ -11,6 +11,7 @@ CAMS_COLUMNS = ["pm2_5", "pm10"]
 WEATHER_COLUMNS = list(WEATHER_VARS.values())
 # таблицы, которые можно чистить по размеру базы (ряд и журнал не чистятся никогда)
 SNAPSHOT_TABLES = {"cams_forecasts": CAMS_COLUMNS, "weather_forecasts": WEATHER_COLUMNS}
+REGION_COLUMNS = ["pm2_5", "pm10", "wind", "wind_dir"]
 
 SCHEMA = f"""
 create table if not exists series (
@@ -45,6 +46,16 @@ create table if not exists runs (
 );
 alter table runs add column if not exists db_mb double precision;
 alter table runs add column if not exists cleaned_rows integer;
+alter table runs add column if not exists region_rows integer;
+-- сетка CAMS вокруг Алматы для карты на сайте: только последний снимок (сутки назад и 3 суток вперёд)
+create table if not exists region (
+    lat double precision not null,
+    lon double precision not null,
+    time timestamptz not null,
+    issued_at timestamptz not null,
+    {", ".join(f"{c} double precision" for c in REGION_COLUMNS)},
+    primary key (lat, lon, time)
+);
 """
 
 
@@ -110,6 +121,19 @@ def save_forecast(conn: psycopg.Connection, table: str, issued_at: pd.Timestamp,
         return 0
     rows.insert(0, "issued_at", issued_at)
     return _upsert(conn, table, ["issued_at", "time"], rows)
+
+
+# сетка для карты: прошлый снимок заменяется новым в одной транзакции – таблица не растёт
+def replace_region(conn: psycopg.Connection, frame: pd.DataFrame) -> int:
+    columns = ["lat", "lon", "time", "issued_at", *REGION_COLUMNS]
+    rows = [tuple(None if pd.isna(v) else (v.to_pydatetime() if isinstance(v, pd.Timestamp) else float(v))
+                  for v in row) for row in frame[columns].itertuples(index=False)]
+    with conn.cursor() as cur:
+        cur.execute("delete from region")
+        cur.executemany(f"insert into region ({', '.join(columns)}) values ({', '.join(['%s'] * len(columns))})",
+                        rows)
+    conn.commit()
+    return len(rows)
 
 
 def db_size_mb(conn: psycopg.Connection) -> float:
@@ -188,7 +212,7 @@ def log_run(conn: psycopg.Connection, **fields) -> None:
 def counts(conn: psycopg.Connection) -> dict[str, int]:
     out = {}
     with conn.cursor() as cur:
-        for table in ["series", "cams_forecasts", "weather_forecasts", "runs"]:
+        for table in ["series", "cams_forecasts", "weather_forecasts", "runs", "region"]:
             cur.execute(f"select count(*) from {table}")
             out[table] = cur.fetchone()[0]
     return out

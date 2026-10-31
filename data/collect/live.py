@@ -6,12 +6,16 @@ import pandas as pd
 import psycopg
 
 from . import db
-from .api import fetch_hourly
+from .api import fetch_hourly, fetch_hourly_points
 from .config import (
     AIR_URL,
     DB_LIMIT_MB,
     FORECAST_DAYS,
     KEEP_DAYS,
+    REGION_AHEAD_HOURS,
+    REGION_LATS,
+    REGION_LONS,
+    REGION_PAST_HOURS,
     OVERLAP_DAYS,
     START_DATE,
     WEATHER_FORECAST_MODEL,
@@ -41,13 +45,28 @@ def fetch_forecasts(issued_at: pd.Timestamp) -> tuple[pd.DataFrame, pd.DataFrame
     return ahead(air), ahead(weather)
 
 
+# сетка CAMS вокруг Алматы для карты: PM2.5 и PM10 (CAMS) и ветер (IFS) за сутки до issued_at и на 3 суток вперёд
+def fetch_region(issued_at: pd.Timestamp) -> pd.DataFrame:
+    points = [(lat, lon) for lat in REGION_LATS for lon in REGION_LONS]
+    first = issued_at - timedelta(hours=REGION_PAST_HOURS)
+    last = issued_at + timedelta(hours=REGION_AHEAD_HOURS)
+    air = fetch_hourly_points(AIR_URL, {"pm2_5": "pm2_5", "pm10": "pm10"}, points, first.date(), last.date(),
+                              {"domains": "cams_global"})
+    wind = fetch_hourly_points(WEATHER_FORECAST_URL, {"wind_speed_10m": "wind", "wind_direction_10m": "wind_dir"},
+                               points, first.date(), last.date(), {"models": WEATHER_FORECAST_MODEL})
+    frame = air.merge(wind, on=["lat", "lon", "time"], how="left")
+    frame = frame[(frame["time"] > first) & (frame["time"] <= last)].dropna(subset=["pm2_5"])
+    return frame.assign(issued_at=issued_at)
+
+
 # ежечасный запуск: этапы независимы – если не обновился ряд, снимки прогнозов всё равно сохраняются
 # (их нельзя восстановить задним числом); затем очистка по размеру базы; итог каждого запуска пишется в runs
 def hourly(conn: psycopg.Connection, now: pd.Timestamp | None = None, limit_mb: float = DB_LIMIT_MB) -> dict:
     now = now if now is not None else pd.Timestamp.now(tz="UTC")
     started = clock.perf_counter()
     issued_at = now.floor("h")
-    result = {"hours_added": None, "cams_rows": None, "weather_rows": None, "cleaned_rows": None, "db_mb": None}
+    result = {"hours_added": None, "cams_rows": None, "weather_rows": None, "region_rows": None,
+              "cleaned_rows": None, "db_mb": None}
     errors = []
     db.init_schema(conn)
 
@@ -66,6 +85,12 @@ def hourly(conn: psycopg.Connection, now: pd.Timestamp | None = None, limit_mb: 
         result["weather_rows"] = db.save_forecast(conn, "weather_forecasts", issued_at, weather)
     except Exception as error:  # noqa: BLE001
         errors.append(f"прогнозы: {error}")
+
+    try:
+        conn.rollback()
+        result["region_rows"] = db.replace_region(conn, fetch_region(issued_at))
+    except Exception as error:  # noqa: BLE001
+        errors.append(f"карта: {error}")
 
     try:
         conn.rollback()
