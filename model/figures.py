@@ -157,6 +157,22 @@ def fig_weather(report: dict) -> None:
     save(fig, 21, "Ошибка моделей с прогнозом погоды и без на валидации")
 
 
+def fig_all_models(arima: dict, prophet: dict, lstm_report: dict, baseline: dict) -> None:
+    fig, ax = plt.subplots(figsize=(10, 5))
+    lines = [(arima["mae_by_horizon"]["arima_harmonic"], ORANGE, "ARIMA + 12 гармоник, окно 90 дн."),
+             (prophet["mae_by_horizon"]["prophet"], MAGENTA, "Prophet, вся история"),
+             (lstm_report["mae_by_horizon"]["lstm"], BLUE, "LSTM"),
+             (lstm_report["mae_by_horizon"]["lstm_weather"], YELLOW, "LSTM + прогноз погоды"),
+             (arima["mae_by_horizon"]["profile_7d"], AQUA, "средний профиль за 7 дней (лучшая базовая)")]
+    for curve, color, label in lines:
+        ax.plot(np.arange(1, len(curve) + 1), curve, color=color, lw=2, label=label)
+    curve = baseline["mae_by_horizon"]["seasonal_24"]
+    ax.plot(np.arange(1, len(curve) + 1), curve, color=INK2, lw=1.2, ls=(0, (4, 3)), label="сезонно-наивная, сутки")
+    horizon_axis(ax)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.14), ncols=2, fontsize=10.5, frameon=False)
+    save(fig, 22, "Ошибка всех моделей по горизонту прогноза на валидации")
+
+
 def main() -> None:
     baseline = load("baselines/validation.json")
     fig_baselines(baseline)
@@ -171,6 +187,9 @@ def main() -> None:
     weather = load("weather/validation.json")
     if weather:
         fig_weather(weather)
+    lstm_report = load("lstm/validation.json")
+    if lstm_report and arima and prophet:
+        fig_all_models(arima, prophet, lstm_report, baseline)
 
 
 if __name__ == "__main__":
