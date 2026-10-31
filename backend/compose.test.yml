@@ -1,0 +1,37 @@
+# тесты API с настоящим Postgres той же версии, что в Neon (18): make test;
+# таблицы создаёт тот же код, что и в ежечасной задаче (data/collect/db.py)
+name: smogcast-api-test
+
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_PASSWORD: test
+    tmpfs:
+      - /var/lib/postgresql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  schema:
+    build: ../data
+    entrypoint: ["python", "-c", "import os; from collect import db; db.init_schema(db.connect(os.environ['DATABASE_URL']))"]
+    environment:
+      DATABASE_URL: postgresql://postgres:test@db:5432/postgres
+    depends_on:
+      db:
+        condition: service_healthy
+
+  tests:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    command: ["python", "-m", "pytest", "-q", "-p", "no:cacheprovider", "tests"]
+    environment:
+      DATABASE_URL: postgresql://postgres:test@db:5432/postgres
+      VERSION_TTL: "0"
+    depends_on:
+      schema:
+        condition: service_completed_successfully
