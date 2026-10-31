@@ -4,62 +4,23 @@
 Имена файлов – «Рисунок N – Название.png»; номера – порядок в разделе исследования, в отчёте их можно сдвинуть.
 """
 import json
-import os
-from pathlib import Path
 
-import matplotlib
+import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from statsmodels.tsa.stattools import pacf
 
-matplotlib.use("Agg")
-import matplotlib.dates as mdates  # noqa: E402
-import matplotlib.pyplot as plt  # noqa: E402
-import numpy as np  # noqa: E402
-import pandas as pd  # noqa: E402
-from matplotlib import font_manager  # noqa: E402
-from matplotlib.colors import LinearSegmentedColormap  # noqa: E402
-from matplotlib.ticker import FuncFormatter  # noqa: E402
-from statsmodels.tsa.stattools import pacf  # noqa: E402
+import eda
+import prep
+from style import (
+    AQUA, AXIS, BLUE, BLUE_LIGHT, COMMA, CRITICAL, INK, INK2, MUTED, ORANGE, SEQUENTIAL, UNIT, WASH, YELLOW,
+    naive, num, save,
+)
 
-import eda  # noqa: E402
-import prep  # noqa: E402
-
-OUT = Path(os.environ.get("FIGURES", "/figures"))
 EDA = json.loads((eda.RESULTS / "eda.json").read_text(encoding="utf-8"))
-
-# шрифт отчёта – Times New Roman из Windows (папка Fonts подключена только для чтения)
-for name in ("times.ttf", "timesbd.ttf", "timesi.ttf"):
-    path = Path("/winfonts") / name
-    if path.exists():
-        font_manager.fontManager.addfont(str(path))
-
-# палитра: категориальные цвета по порядку, чернила и сетка – нейтральные
-BLUE, ORANGE, AQUA, YELLOW = "#2a78d6", "#eb6834", "#1baf7a", "#eda100"
-BLUE_LIGHT = "#9ec5f4"
-CRITICAL = "#d03b3b"
-INK, INK2, MUTED, GRID, AXIS, WASH = "#0b0b0b", "#52514e", "#898781", "#e1e0d9", "#c3c2b7", "#f0efec"
-SEQUENTIAL = LinearSegmentedColormap.from_list("blue", ["#cde2fb", "#86b6ef", "#3987e5", "#256abf", "#104281",
-                                                        "#0d366b"])
-
-plt.rcParams.update({
-    "font.family": "Times New Roman", "font.size": 12, "axes.titlesize": 13, "axes.labelsize": 12,
-    "axes.edgecolor": AXIS, "axes.labelcolor": INK, "xtick.color": INK2, "ytick.color": INK2,
-    "axes.spines.top": False, "axes.spines.right": False, "axes.grid": True, "grid.color": GRID,
-    "grid.linewidth": 0.8, "axes.axisbelow": True, "legend.frameon": True, "legend.framealpha": 0.95,
-    "legend.edgecolor": GRID, "lines.linewidth": 2, "savefig.dpi": 200, "savefig.bbox": "tight",
-    "axes.formatter.use_locale": False,
-})
-
-COMMA = FuncFormatter(lambda v, _: f"{v:g}".replace(".", ","))
 MONTHS = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"]
 WEEKDAYS = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"]
-UNIT = "PM2.5, мкг/м³"
-
-
-def num(value: float, digits: int = 2) -> str:
-    return f"{value:.{digits}f}".replace(".", ",")
-
-
-def naive(index: pd.DatetimeIndex) -> pd.DatetimeIndex:
-    return index.tz_localize(None)
 
 
 def date_axis(ax, fmt: str = "%m.%Y", interval: int = 6) -> None:
@@ -79,13 +40,6 @@ def upgrades(ax) -> None:
         ax.axvline(x, color=INK2, lw=1, ls=(0, (1, 2)))
         ax.text(x, 0.99, f" CAMS {name}", transform=ax.get_xaxis_transform(), va="top", ha="left", color=INK2,
                 fontsize=10)
-
-
-def save(fig, n: int, title: str) -> None:
-    OUT.mkdir(parents=True, exist_ok=True)
-    fig.savefig(OUT / f"Рисунок {n} – {title}.png", facecolor="white")
-    plt.close(fig)
-    print("saved", n, title)
 
 
 def fig_series(frame: pd.DataFrame, daily: pd.Series) -> None:

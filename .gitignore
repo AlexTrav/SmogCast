@@ -17,6 +17,7 @@ dist/
 
 # рисунки исследования собираются в папку отчёта (make -C research figures FIGURES=...)
 research/figures/
+model/figures/
 
 # логи
 *.log

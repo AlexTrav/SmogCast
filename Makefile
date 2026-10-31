@@ -8,6 +8,8 @@ data:
 check:
 	"$(MAKE)" -C data check
 
-# все автотесты
+# все автотесты: сбор и база, исследование, каркас проверки и модели
 test:
 	"$(MAKE)" -C data test
+	"$(MAKE)" -C research test
+	"$(MAKE)" -C model test
