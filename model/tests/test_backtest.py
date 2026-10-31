@@ -56,6 +56,28 @@ def test_refit_once_per_period():
     assert spy.fits[0] == at[0] and (gaps == 7).all() and len(spy.fits) == 6
 
 
+# модель «помнит» момент подгонки: прогноз зависит от него, поэтому блоки обязаны совпасть с run()
+class FitMemory:
+    name = "fit-memory"
+
+    def fit(self, history):
+        self.level = history.iloc[-1]
+
+    def predict(self, history, horizon):
+        return np.full(horizon, self.level) + np.arange(horizon) * 0.01
+
+
+def test_run_blocks_matches_sequential_run():
+    series = hourly(np.random.default_rng(2).normal(3, 0.3, 24 * 60))
+    at = backtest.origins(series, series.index[24 * 5], None, horizon=24)
+    sequential = backtest.run(FitMemory(), series, at, horizon=24)
+    blocks = backtest.refit_blocks(at)
+    assert sum(len(b) for b in blocks) == len(at) and len(blocks) == len(set(b[0] for b in blocks))
+    parallel = backtest.run_blocks(FitMemory, series, at, map, horizon=24)
+    assert parallel.origins.equals(sequential.origins)
+    assert np.array_equal(parallel.pred, sequential.pred) and np.array_equal(parallel.actual, sequential.actual)
+
+
 def test_train_start_cuts_history():
     series = hourly(np.zeros(24 * 20))
     at = backtest.origins(series, series.index[24 * 10], None, horizon=24)

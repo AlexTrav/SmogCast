@@ -1,4 +1,4 @@
-.PHONY: build baselines figures test
+.PHONY: build baselines arima-orders arima figures test
 
 IMAGE := smogcast-model
 
@@ -19,6 +19,14 @@ build:
 # базовые модели на скользящей проверке -> reports/baselines/$(PERIOD).json
 baselines: build
 	$(RUN) python baselines.py --period $(PERIOD)
+
+# ARIMA: подбор порядков по AIC на обучающей части (около 15 минут) -> reports/arima/orders.json
+arima-orders: build
+	$(RUN) python arima.py orders
+
+# ARIMA: окна 28/56/90 дней на валидации и интервалы для лучших (до получаса) -> reports/arima/validation.json
+arima: build
+	$(RUN) python arima.py validate
 
 # рисунки по сохранённым отчётам; шрифт Times New Roman – из Windows
 figures: build

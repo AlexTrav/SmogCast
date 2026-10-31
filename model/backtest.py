@@ -44,6 +44,7 @@ class Result:
     actual: np.ndarray  # ln PM2.5, та же форма
     lower: dict | None = None  # уровень интервала (0.8, 0.95) -> нижняя граница, ln
     upper: dict | None = None
+    native: dict | None = None  # собственные интервалы модели, если она их строит: уровень -> (нижняя, верхняя), ln
 
 
 def log_series(frame: pd.DataFrame) -> pd.Series:
@@ -64,16 +65,17 @@ def origins(series: pd.Series, start: pd.Timestamp, end: pd.Timestamp | None, ho
 
 # прогон модели по моментам прогноза; подгонка – в первый момент и затем раз в refit_days по всей истории до момента
 def run(model: Model, series: pd.Series, at: pd.DatetimeIndex, horizon: int = HORIZON,
-        refit_days: float = 7, train_start: pd.Timestamp | None = None) -> Result:
+        refit_days: float | None = 7, train_start: pd.Timestamp | None = None) -> Result:
     values = series.to_numpy()
     position = pd.Series(np.arange(len(series)), index=series.index)
     first = 0 if train_start is None else int(position[series.index >= train_start].iloc[0])
-    pred, actual = [], []
+    pred, actual, native = [], [], []
     fitted_at = None
     for origin in at:
         i = int(position[origin])
         history = series.iloc[first:i + 1]  # копия до момента прогноза включительно – будущего модель не видит
-        if fitted_at is None or origin - fitted_at >= timedelta(days=refit_days):
+        # refit_days=None – подгонка один раз, в первый момент (так считается каждый блок в run_blocks)
+        if fitted_at is None or (refit_days is not None and origin - fitted_at >= timedelta(days=refit_days)):
             model.fit(history)
             fitted_at = origin
         forecast = np.asarray(model.predict(history, horizon), dtype=float)
@@ -81,7 +83,49 @@ def run(model: Model, series: pd.Series, at: pd.DatetimeIndex, horizon: int = HO
             raise ValueError(f"{model.name}: прогноз формы {forecast.shape}, ожидалось ({horizon},)")
         pred.append(forecast)
         actual.append(values[i + 1:i + 1 + horizon])
-    return Result(model.name, at, np.array(pred), np.array(actual))
+        if hasattr(model, "intervals"):  # собственные интервалы последнего прогноза: уровень -> (нижняя, верхняя)
+            native.append(model.intervals())
+    result = Result(model.name, at, np.array(pred), np.array(actual))
+    if native:
+        result.native = {level: (np.array([n[level][0] for n in native]), np.array([n[level][1] for n in native]))
+                         for level in native[0]}
+    return result
+
+
+# моменты прогноза, разбитые на блоки между переподгонками – по тому же правилу, что в run()
+def refit_blocks(at: pd.DatetimeIndex, refit_days: float = 7) -> list[pd.DatetimeIndex]:
+    blocks, start = [], 0
+    fitted_at = at[0] if len(at) else None
+    for i, origin in enumerate(at):
+        if origin - fitted_at >= timedelta(days=refit_days):
+            blocks.append(at[start:i])
+            start, fitted_at = i, origin
+    if len(at):
+        blocks.append(at[start:])
+    return blocks
+
+
+def concat(results: list[Result]) -> Result:
+    out = Result(results[0].name, results[0].origins.append([r.origins for r in results[1:]]),
+                 np.concatenate([r.pred for r in results]), np.concatenate([r.actual for r in results]))
+    if results[0].native:
+        out.native = {level: (np.concatenate([r.native[level][0] for r in results]),
+                              np.concatenate([r.native[level][1] for r in results])) for level in results[0].native}
+    return out
+
+
+# тот же прогон, что run(), но блоки между переподгонками считаются параллельно в map (например, pool.map):
+# модель внутри блока подгоняется один раз в его начале, поэтому блоки независимы и результат совпадает с run()
+def run_blocks(make_model, series: pd.Series, at: pd.DatetimeIndex, map_function, horizon: int = HORIZON,
+               refit_days: float = 7, train_start: pd.Timestamp | None = None) -> Result:
+    blocks = refit_blocks(at, refit_days)
+    tasks = [(make_model, series, block, horizon, train_start) for block in blocks]
+    return concat(list(map_function(_run_block, tasks)))
+
+
+def _run_block(task: tuple) -> Result:
+    make_model, series, block, horizon, train_start = task
+    return run(make_model(), series, block, horizon=horizon, refit_days=None, train_start=train_start)
 
 
 # эмпирические интервалы: квантили ошибок (ln) по каждому горизонту на калибровочном прогоне до проверяемой части
@@ -118,6 +162,9 @@ def horizon_metrics(result: Result) -> dict[str, np.ndarray]:
         low, high = result.lower[level], result.upper[level]
         out[f"cover{int(level * 100)}"] = np.mean((result.actual >= low) & (result.actual <= high), axis=0)
         out[f"width{int(level * 100)}"] = np.mean(np.exp(high) - np.exp(low), axis=0)
+    for level, (low, high) in (result.native or {}).items():
+        out[f"native_cover{int(level * 100)}"] = np.mean((result.actual >= low) & (result.actual <= high), axis=0)
+        out[f"native_width{int(level * 100)}"] = np.mean(np.exp(high) - np.exp(low), axis=0)
     return out
 
 
