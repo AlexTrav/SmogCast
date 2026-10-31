@@ -70,6 +70,16 @@ create table if not exists model_forecasts (
     hi95 double precision,
     primary key (issued_at, model, time)
 );
+-- «почему такой прогноз»: части последнего прогноза Prophet (ln PM2.5) – тренд, суточный и годовой ход;
+-- хранится только последний прогноз (пишет model/live.py)
+create table if not exists prophet_parts (
+    issued_at timestamptz not null,
+    time timestamptz not null,
+    trend double precision not null,
+    daily double precision not null,
+    yearly double precision not null,
+    primary key (issued_at, time)
+);
 -- журнал расчёта прогнозов: время каждой модели (мс) – для страницы «Производительность»
 create table if not exists model_runs (
     id bigserial primary key,
@@ -237,7 +247,7 @@ def counts(conn: psycopg.Connection) -> dict[str, int]:
     out = {}
     with conn.cursor() as cur:
         for table in ["series", "cams_forecasts", "weather_forecasts", "runs", "region", "model_forecasts",
-                      "model_runs"]:
+                      "model_runs", "prophet_parts"]:
             cur.execute(f"select count(*) from {table}")
             out[table] = cur.fetchone()[0]
     return out

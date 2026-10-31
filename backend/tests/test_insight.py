@@ -1,3 +1,4 @@
+import math
 from datetime import timedelta
 
 import pytest
@@ -129,3 +130,41 @@ def test_region_grid_by_hour_lat_lon(client, filled):
 
 def test_region_without_grid_is_unavailable(client, filled):
     assert client.get("/api/region").status_code == 503
+
+
+@pytest.fixture
+def explained(filled):
+    times = [LAST + timedelta(hours=h) for h in range(1, 73)]
+    with filled.cursor() as cur:
+        for model, value in (("lstm", 10.0), ("lstm_weather", 12.0)):
+            cur.executemany("insert into model_forecasts values (%s, %s, %s, %s, 0, 99, 0, 99)",
+                            [(LAST, model, t, value) for t in times])
+        # уровень 20, годовой ход ×1,2; суточный пик ×1,5 в 20:00 по Алматы (15:00 UTC), минимум ×0,8 в 06:00
+        def daily(t):
+            return {15: math.log(1.5), 1: math.log(0.8)}.get(t.hour, 0.0)
+
+        cur.executemany("insert into prophet_parts values (%s, %s, %s, %s, %s)",
+                        [(LAST, t, math.log(20), daily(t), math.log(1.2)) for t in times])
+    filled.commit()
+    return filled
+
+
+def test_explain_prophet_factors_blend_and_weather(client, explained):
+    body = client.get("/api/explain").json()
+    prophet = body["prophet"]
+    assert prophet["summary"]["level"] == 20 and prophet["summary"]["yearly"] == 1.2
+    assert prophet["summary"]["daily_high"] == {"hour": 20, "factor": 1.5}
+    assert prophet["summary"]["daily_low"] == {"hour": 6, "factor": 0.8}
+    assert len(prophet["daily"]) == 72
+    assert set(body["blend"]["parts"]) == set(DEFAULT.split("+")) and body["blend"]["parts"]["lstm"][0] == 10
+    assert body["weather"]["ratio"][0] == 1.2 and body["weather"]["mean_24h"] == 1.2
+
+
+def test_explain_without_prophet_parts(client, filled):
+    body = client.get("/api/explain").json()
+    assert body["prophet"] is None and body["weather"] is None
+    assert body["blend"]["pred"][0] == 20
+
+
+def test_explain_without_forecasts_is_unavailable(client, conn):
+    assert client.get("/api/explain").status_code == 503

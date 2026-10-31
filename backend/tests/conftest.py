@@ -12,7 +12,7 @@ START = datetime(2026, 10, 1, tzinfo=timezone.utc)
 HOURS = 240  # 10 суток ряда
 LAST = START + timedelta(hours=HOURS - 1)
 FIELDS = main.FIELDS
-TABLES = "series, cams_forecasts, weather_forecasts, runs, region, model_forecasts, model_runs"
+TABLES = "series, cams_forecasts, weather_forecasts, runs, region, model_forecasts, model_runs, prophet_parts"
 
 
 # PM2.5 в час i – 10 + i % 24: по значению легко проверить, какой час попал в ответ

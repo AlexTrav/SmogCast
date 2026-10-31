@@ -97,6 +97,10 @@ class ProphetModel:
         future = pd.date_range(history.index[-1] + timedelta(hours=1), periods=horizon, freq="h")
         ahead = weather.future(history.index[-1], horizon, self.weather_vars) if self.weather_vars else None
         forecast = self.model.predict(self._frame(future, weather_values=ahead))
+        # части прогноза (ln PM2.5) для «почему такой прогноз» на сайте: yhat = тренд + суточный + годовой ход
+        # (+ регрессоры, если они есть)
+        self.parts = pd.DataFrame({name: forecast[name].to_numpy() if name in forecast else np.zeros(horizon)
+                                   for name in ("trend", "daily", "yearly")}, index=future)
         return np.clip(forecast["yhat"].to_numpy(), LOW, HIGH)
 
 

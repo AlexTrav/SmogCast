@@ -1,6 +1,7 @@
 """Живые прогнозы (подпункт 6б): каждый час, после обновления ряда в базе, все модели строят прогноз на 72 ч
 от последнего часа ряда и пишут его в model_forecasts (Neon) вместе с интервалами 80 % и 95 %; время расчёта
 каждой модели – в model_runs. Модель по умолчанию – смесь, выбранная на валидации (reports/final/selection.json).
+Части прогноза Prophet (тренд, суточный и годовой ход) – в prophet_parts, для «почему такой прогноз» на сайте.
 
     make -C model live   # вручную; по расписанию – шаг GitHub Actions после data hourly
 """
@@ -39,20 +40,24 @@ def factories(future_weather) -> dict:
 FRAME: pd.DataFrame | None = None  # ряд с погодой для LSTM с погодой (прошлые часы)
 
 
-# прогнозы всех моделей и смеси по умолчанию от последнего часа ряда: строки для model_forecasts и время моделей
-def forecasts(frame: pd.DataFrame, future_weather, quantiles: dict, default: str) -> tuple[pd.DataFrame, dict, dict]:
+# прогнозы всех моделей и смеси по умолчанию от последнего часа ряда: строки для model_forecasts, время моделей,
+# ошибки и части прогноза Prophet (None, если Prophet не отработал)
+def forecasts(frame: pd.DataFrame, future_weather, quantiles: dict,
+              default: str) -> tuple[pd.DataFrame, dict, dict, pd.DataFrame | None]:
     global FRAME
     FRAME = frame
     series = np.log(frame["pm2_5"])
     origin = series.index[-1]
     times = pd.date_range(origin + pd.Timedelta(hours=1), periods=HORIZON, freq="h")
-    predictions, timings, errors = {}, {}, {}
+    predictions, timings, errors, components = {}, {}, {}, None
     for key, factory in factories(future_weather).items():
         began = time.perf_counter()
         try:
             model = factory()
             model.fit(series)
             predictions[key] = np.asarray(model.predict(series, HORIZON), dtype=float)
+            if key == "prophet":
+                components = model.parts.rename_axis("time").reset_index().assign(issued_at=origin)
         except Exception as error:  # noqa: BLE001 – сбой одной модели не мешает остальным
             errors[key] = str(error)[:500]
         timings[key] = int((time.perf_counter() - began) * 1000)
@@ -68,7 +73,7 @@ def forecasts(frame: pd.DataFrame, future_weather, quantiles: dict, default: str
             "lo80": np.exp(bounds["0.8"][0]), "hi80": np.exp(bounds["0.8"][1]),
             "lo95": np.exp(bounds["0.95"][0]), "hi95": np.exp(bounds["0.95"][1]),
         }))
-    return pd.concat(rows, ignore_index=True), timings, errors
+    return pd.concat(rows, ignore_index=True), timings, errors, components
 
 
 # ---------- база ----------
@@ -118,6 +123,18 @@ def write(conn, rows: pd.DataFrame) -> int:
     return len(values)
 
 
+# хранится только последний прогноз Prophet: прошлый заменяется в одной транзакции
+def write_parts(conn, parts: pd.DataFrame) -> int:
+    columns = ["issued_at", "time", "trend", "daily", "yearly"]
+    values = [(row.issued_at.to_pydatetime(), row.time.to_pydatetime(), float(row.trend), float(row.daily),
+               float(row.yearly)) for row in parts[columns].itertuples(index=False)]
+    with conn.cursor() as cur:
+        cur.execute("delete from prophet_parts")
+        cur.executemany(f"insert into prophet_parts ({', '.join(columns)}) values (%s, %s, %s, %s, %s)", values)
+    conn.commit()
+    return len(values)
+
+
 def main() -> None:
     import psycopg
 
@@ -131,8 +148,10 @@ def main() -> None:
     with psycopg.connect(url, connect_timeout=30) as conn:
         frame = read_frame(conn)
         origin = frame.index[-1]
-        rows, timings, errors = forecasts(frame, weather_provider(conn, origin), quantiles, default)
+        rows, timings, errors, parts = forecasts(frame, weather_provider(conn, origin), quantiles, default)
         written = write(conn, rows)
+        if parts is not None:
+            write_parts(conn, parts)
         status = "error" if errors else "ok"
         with conn.cursor() as cur:
             cur.execute("insert into model_runs (started_at, issued_at, duration_ms, model_ms, status, error) "

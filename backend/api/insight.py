@@ -3,7 +3,7 @@
 import json
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Query, Request, Response
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 
 from . import db
 from .common import (DEFAULT_MODEL, REPORTS, STARTED, TZ, cached, iso, memo, percentile, r1, static,
@@ -142,4 +142,55 @@ def build_performance(hours: int) -> dict:
             "hours_with_run_7d": week, "hours_expected_7d": expected,
             "db_mb": r1(runs[-1][5]) if runs else None,
         },
+    }
+
+
+@router.get("/explain")
+def explain(request: Request) -> Response:
+    """«Почему такой прогноз»: последний прогноз Prophet, разложенный на множители – уровень (тренд, мкг/м³),
+    суточный и годовой ход (во сколько раз они поднимают или опускают уровень); из каких моделей сложена
+    смесь по умолчанию; во сколько раз прогноз погоды сдвигает LSTM (LSTM с погодой / LSTM без неё)."""
+    return cached(request, "explain", build_explain)
+
+
+def _ratio(a: list, b: list) -> list:
+    return [None if x is None or not y else round(x / y, 3) for x, y in zip(a, b)]
+
+
+def build_explain() -> dict:
+    issued = db.fetch_one("select max(issued_at) from model_forecasts")[0]
+    if issued is None:
+        raise HTTPException(503, "прогнозов ещё нет")
+    rows = db.fetch("select model, time, pred from model_forecasts where issued_at = %s order by model, time",
+                    (issued,))
+    preds: dict[str, list] = {}
+    for model, _, pred in rows:
+        preds.setdefault(model, []).append(pred)
+    start = min(r[1] for r in rows)
+    parts = db.fetch(f"select time, (time at time zone '{TZ}')::time, exp(trend), exp(daily), exp(yearly) "
+                     "from prophet_parts where issued_at = %s order by time", (issued,))
+    prophet = None
+    if parts:
+        columns = list(zip(*parts))
+        daily = list(zip(columns[1], columns[3]))[:24]  # сутки суточного хода: (местное время, множитель)
+        low, high = min(daily, key=lambda d: d[1]), max(daily, key=lambda d: d[1])
+        prophet = {
+            "level": [r1(v) for v in columns[2]],
+            "daily": [round(v, 3) for v in columns[3]], "yearly": [round(v, 3) for v in columns[4]],
+            "summary": {"level": r1(sum(columns[2]) / len(parts)),
+                        "yearly": round(sum(columns[4]) / len(parts), 3),
+                        "daily_low": {"hour": low[0].hour, "factor": round(low[1], 3)},
+                        "daily_high": {"hour": high[0].hour, "factor": round(high[1], 3)}},
+        }
+    names = DEFAULT_MODEL.split("+")
+    weather = None
+    if "lstm" in preds and "lstm_weather" in preds:
+        ratio = _ratio(preds["lstm_weather"], preds["lstm"])
+        weather = {"ratio": ratio, "mean_24h": round(sum(ratio[:24]) / 24, 3)}
+    return {
+        "issued_at": iso(issued), "start": iso(start), "step": "hour",
+        "prophet": prophet,
+        "blend": {"model": DEFAULT_MODEL, "pred": [r1(v) for v in preds.get(DEFAULT_MODEL, [])],
+                  "parts": {n: [r1(v) for v in preds[n]] for n in names if n in preds}},
+        "weather": weather,
     }
