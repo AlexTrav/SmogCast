@@ -19,6 +19,9 @@ dist/
 research/figures/
 model/figures/
 
+# кэш прогонов моделей – воспроизводится командами make в model/
+model/.cache/
+
 # логи
 *.log
 

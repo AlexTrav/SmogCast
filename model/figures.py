@@ -129,6 +129,34 @@ def fig_prophet_components() -> None:
     save(fig, 20, "Компоненты Prophet на обучающей части")
 
 
+def fig_weather(report: dict) -> None:
+    configs = report["configs"]
+    buckets = ["1–24", "25–48", "49–72"]
+    panels = [
+        ("ARIMA + 12 гармоник, окно 90 дн.", [("arima_w90", BLUE, "без погоды"),
+                                              ("arima_weather_w90", ORANGE, "с прогнозом погоды")]),
+        ("Prophet", [("prophet", BLUE, "без погоды, вся история"),
+                     ("prophet_feb2024", AQUA, "без погоды, история с 02.2024"),
+                     ("prophet_weather_noyear", ORANGE, "с прогнозом погоды, история с 02.2024")]),
+    ]
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4.8), sharey=True)
+    for ax, (title, bars) in zip(axes, panels):
+        width = 0.8 / len(bars)
+        for j, (key, color, label) in enumerate(bars):
+            x = np.arange(len(buckets)) + (j - (len(bars) - 1) / 2) * width
+            values = [configs[key][b]["mae"] for b in buckets]
+            ax.bar(x, values, width=width * 0.9, color=color, label=label)
+            for xi, v in zip(x, values):
+                ax.text(xi, v + 0.1, f"{v:.2f}".replace(".", ","), ha="center", va="bottom", fontsize=9.5)
+        ax.set_xticks(range(len(buckets)), [f"{b} ч" for b in buckets])
+        ax.set_title(title, loc="left")
+        ax.grid(axis="x", visible=False)
+        ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.1), fontsize=10.5, frameon=False)
+    axes[0].set_ylabel("MAE, мкг/м³")
+    axes[0].yaxis.set_major_formatter(COMMA)
+    save(fig, 21, "Ошибка моделей с прогнозом погоды и без на валидации")
+
+
 def main() -> None:
     baseline = load("baselines/validation.json")
     fig_baselines(baseline)
@@ -140,6 +168,9 @@ def main() -> None:
     if prophet and arima:
         fig_prophet(prophet, arima, baseline)
         fig_prophet_components()
+    weather = load("weather/validation.json")
+    if weather:
+        fig_weather(weather)
 
 
 if __name__ == "__main__":

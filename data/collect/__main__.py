@@ -38,13 +38,19 @@ def main() -> None:
         "command",
         nargs="?",
         default="update",
-        choices=["update", "full", "check", "seed", "hourly"],
+        choices=["update", "full", "check", "seed", "hourly", "prev"],
         help="update – дописать свежие часы в CSV, full – выгрузить CSV заново, check – проверить CSV; "
-             "seed – загрузить CSV в базу, hourly – ежечасный запуск с базой (ряд, снимки прогнозов, журнал)",
+             "seed – загрузить CSV в базу, hourly – ежечасный запуск с базой (ряд, снимки прогнозов, журнал); "
+             "prev – архив прошлых прогнозов погоды в CSV",
     )
     parser.add_argument("--max-age-hours", type=int, help="при check: ошибка, если последний час старше")
     args = parser.parse_args()
 
+    if args.command == "prev":
+        from . import prev
+
+        print(prev.summary(prev.collect()))
+        return
     if args.command in ("seed", "hourly"):
         problems = run_db(args.command)
     elif args.command == "check":

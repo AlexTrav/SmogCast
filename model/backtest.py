@@ -3,6 +3,7 @@
 В момент прогноза t модель получает ряд только до часа t включительно и прогнозирует часы t+1 … t+H.
 Модели работают в логарифмах (ln PM2.5), метрики считаются в мкг/м³ после обратного перевода.
 """
+import math
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Protocol
@@ -105,6 +106,20 @@ def refit_blocks(at: pd.DatetimeIndex, refit_days: float = 7) -> list[pd.Datetim
     return blocks
 
 
+# кэш прогонов (model/.cache, в git не попадает): повторный запуск отчёта не пересчитывает готовые конфигурации
+def save_result(result: Result, path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    # моменты прогноза – секунды UTC с явной единицей (pandas 3 хранит время в микросекундах, а не наносекундах)
+    np.savez_compressed(path, name=result.name, origins=result.origins.tz_convert("UTC").as_unit("s").asi8,
+                        pred=result.pred, actual=result.actual)
+
+
+def load_result(path) -> Result:
+    data = np.load(path)
+    origins = pd.DatetimeIndex(pd.to_datetime(data["origins"], unit="s", utc=True)).tz_convert(prep.TZ)
+    return Result(str(data["name"]), origins, data["pred"], data["actual"])
+
+
 def concat(results: list[Result]) -> Result:
     out = Result(results[0].name, results[0].origins.append([r.origins for r in results[1:]]),
                  np.concatenate([r.pred for r in results]), np.concatenate([r.actual for r in results]))
@@ -166,6 +181,24 @@ def horizon_metrics(result: Result) -> dict[str, np.ndarray]:
         out[f"native_cover{int(level * 100)}"] = np.mean((result.actual >= low) & (result.actual <= high), axis=0)
         out[f"native_width{int(level * 100)}"] = np.mean(np.exp(high) - np.exp(low), axis=0)
     return out
+
+
+# тест Диболда–Мариано: значимо ли модель a точнее модели b на сутках горизонта bucket. Потеря – абсолютная
+# ошибка в мкг/м³, усреднённая по часам горизонта в каждом прогнозе; дисперсия разности – по Ньюи–Уэсту
+# с лагом lag (прогнозы каждые 6 ч на 72 ч перекрываются, соседние ошибки зависимы). Модели – на одних моментах.
+def dm_test(a: Result, b: Result, bucket: tuple[int, int] = (1, 24), lag: int = 12) -> dict:
+    if not a.origins.equals(b.origins):
+        raise ValueError("модели проверены на разных моментах прогноза")
+    part = slice(bucket[0] - 1, bucket[1])
+    y = np.exp(a.actual[:, part])
+    d = np.abs(y - np.exp(a.pred[:, part])).mean(axis=1) - np.abs(y - np.exp(b.pred[:, part])).mean(axis=1)
+    n, centered = len(d), d - d.mean()
+    variance = centered @ centered / n
+    for k in range(1, lag + 1):
+        variance += 2 * (1 - k / (lag + 1)) * (centered[k:] @ centered[:-k]) / n
+    stat = float(d.mean() / np.sqrt(variance / n)) if variance > 0 else 0.0
+    return {"mae_diff": round(float(d.mean()), 4), "dm": round(stat, 3),
+            "p_value": round(float(math.erfc(abs(stat) / math.sqrt(2))), 4)}
 
 
 # сводка: значения на отдельных горизонтах и средние по суткам горизонта; выигрыш над эталоном по MAE

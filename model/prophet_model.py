@@ -17,13 +17,17 @@ import pandas as pd
 import backtest
 import baselines
 import prep
+import weather
 
 REPORTS = Path(__file__).resolve().parent / "reports" / "prophet"
 LEVELS = (0.8, 0.95)
 LOW, HIGH = np.log(0.3), np.log(500)
 
 logging.getLogger("cmdstanpy").disabled = True  # cmdstanpy пишет о каждой подгонке
-logging.getLogger("prophet").setLevel(logging.WARNING)
+# предупреждение о годовой сезонности при истории короче двух лет – ожидаемо и учтено в выводах; не засоряем логи
+logging.getLogger("prophet").setLevel(logging.ERROR)
+# «Importing plotly failed» – Prophet ищет plotly для интерактивных графиков; они не нужны (рисунки – matplotlib)
+logging.getLogger("prophet.plot").disabled = True
 
 
 # ступени уровня после обновлений CAMS: 1 начиная с даты цикла (известны и в будущем – это расписание, не данные)
@@ -36,22 +40,39 @@ class ProphetModel:
     """Prophet по ln PM2.5 в шкале UTC (без скачка местного времени 01.03.2024). Между подгонками новые часы
     не учитываются: Prophet – функция от времени, а не от последних наблюдений."""
 
-    def __init__(self, steps: bool = False, weekly: bool = False, window_days: int | None = None) -> None:
-        self.steps, self.weekly, self.window_days = steps, weekly, window_days
-        parts = ["вся история" if window_days is None else f"окно {window_days} дн."]
+    def __init__(self, steps: bool = False, weekly: bool = False, window_days: int | None = None,
+                 weather_vars: tuple[str, ...] = (), yearly: bool = True,
+                 history_start: pd.Timestamp | None = None) -> None:
+        self.steps, self.weekly, self.window_days, self.yearly = steps, weekly, window_days, yearly
+        self.weather_vars = tuple(weather_vars)
+        # с погодой история ограничена архивом прогнозов – для честного контроля её можно ограничить и без погоды
+        self.history_start = weather.START if weather_vars else history_start
+        if window_days is not None:
+            parts = [f"окно {window_days} дн."]
+        elif self.history_start is not None:
+            parts = [f"история с {self.history_start:%d.%m.%Y}"]
+        else:
+            parts = ["вся история"]
         if steps:
             parts.append("ступени CAMS")
         if weekly:
             parts.append("недельная сезонность")
+        if weather_vars:
+            parts.append("прогноз погоды (" + ", ".join(weather.NAMES[v] for v in self.weather_vars) + ")")
+        if not yearly:
+            parts.append("без годовой сезонности")
         self.name = "Prophet: " + ", ".join(parts)
         self.model = None
 
-    def _frame(self, index: pd.DatetimeIndex, values=None) -> pd.DataFrame:
+    def _frame(self, index: pd.DatetimeIndex, values=None, weather_values: np.ndarray | None = None) -> pd.DataFrame:
         frame = pd.DataFrame({"ds": index.tz_convert("UTC").tz_localize(None)})
         if values is not None:
             frame["y"] = np.asarray(values)
         if self.steps:
             frame = pd.concat([frame, cams_steps(frame["ds"])], axis=1)
+        if self.weather_vars:
+            for i, name in enumerate(self.weather_vars):
+                frame[f"w_{name}"] = weather_values[:, i]
         return frame
 
     def fit(self, history: pd.Series) -> None:
@@ -59,17 +80,23 @@ class ProphetModel:
 
         if self.window_days is not None:
             history = history.iloc[-self.window_days * 24:]
-        model = Prophet(daily_seasonality=10, yearly_seasonality=6, weekly_seasonality=self.weekly,
-                        changepoint_prior_scale=0.05, uncertainty_samples=0)
+        if self.history_start is not None:
+            history = history[history.index >= self.history_start]  # с погодой – раньше архива прогнозов нет
+        model = Prophet(daily_seasonality=10, yearly_seasonality=6 if self.yearly else False,
+                        weekly_seasonality=self.weekly, changepoint_prior_scale=0.05, uncertainty_samples=0)
         if self.steps:
             for name, start in prep.CAMS_CYCLES[1:]:
                 if history.index[0] < start <= history.index[-1]:  # ступень, которой нет в истории, не выучить
                     model.add_regressor(f"cams_{name}", standardize=False)
-        self.model = model.fit(self._frame(history.index, history.to_numpy()))
+        for name in self.weather_vars:
+            model.add_regressor(f"w_{name}")
+        past = weather.history(history.index, self.weather_vars) if self.weather_vars else None
+        self.model = model.fit(self._frame(history.index, history.to_numpy(), past))
 
     def predict(self, history: pd.Series, horizon: int) -> np.ndarray:
         future = pd.date_range(history.index[-1] + timedelta(hours=1), periods=horizon, freq="h")
-        forecast = self.model.predict(self._frame(future))
+        ahead = weather.future(history.index[-1], horizon, self.weather_vars) if self.weather_vars else None
+        forecast = self.model.predict(self._frame(future, weather_values=ahead))
         return np.clip(forecast["yhat"].to_numpy(), LOW, HIGH)
 
 

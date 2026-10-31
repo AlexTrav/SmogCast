@@ -1,4 +1,4 @@
-.PHONY: build baselines arima-orders arima prophet figures test
+.PHONY: build baselines arima-orders arima prophet weather figures test
 
 IMAGE := smogcast-model
 
@@ -31,6 +31,11 @@ arima: build
 # Prophet: 5 вариантов на валидации и интервалы для лучшего (около 15 минут) -> reports/prophet/validation.json
 prophet: build
 	$(RUN) python -W ignore prophet_model.py
+
+# помогает ли прогноз погоды: ARIMA и Prophet с погодой и без, окна ARIMA до 365 суток (около 30 минут)
+# -> reports/weather/validation.json; нужен архив прогнозов data/series/weather_prev.csv (make -C ../data prev)
+weather: build
+	$(RUN) python -W ignore compare_weather.py
 
 # рисунки по сохранённым отчётам; шрифт Times New Roman – из Windows
 figures: build

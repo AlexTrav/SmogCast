@@ -1,4 +1,4 @@
-.PHONY: build update full check seed hourly test clean
+.PHONY: build update full check prev seed hourly test clean
 
 IMAGE := smogcast-data
 
@@ -21,6 +21,10 @@ update: build
 # выгрузить весь ряд в CSV заново с 01.09.2022
 full: build
 	$(RUN) full
+
+# архив прошлых прогнозов погоды ECMWF IFS 0,25° (за 0–4 суток до часа) с 04.02.2024 -> series/weather_prev.csv
+prev: build
+	$(RUN) prev
 
 # проверить ряд в CSV: непрерывная шкала, пропуски, диапазоны значений
 check: build

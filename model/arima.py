@@ -21,6 +21,8 @@ from statsmodels.tsa.statespace.sarimax import SARIMAX
 import backtest
 import baselines
 import prep
+import weather
+from weather import NAMES as WEATHER_NAMES
 
 REPORTS = Path(__file__).resolve().parent / "reports" / "arima"
 LEVELS = (0.8, 0.95)
@@ -47,35 +49,45 @@ class Arima:
     """ARIMA(p,1,q) по ln PM2.5 на окне последних window_days суток; суточный цикл – сезонная часть
     (P,1,Q)24 или k гармоник суток. Между подгонками новые часы добавляются в фильтр без переподгонки."""
 
-    def __init__(self, order: tuple, seasonal: tuple = (0, 0, 0), k: int = 0, window_days: int = 56) -> None:
+    def __init__(self, order: tuple, seasonal: tuple = (0, 0, 0), k: int = 0, window_days: int = 56,
+                 weather_vars: tuple[str, ...] = ()) -> None:
         self.order, self.seasonal, self.k, self.window_days = order, seasonal, k, window_days
+        self.weather_vars = tuple(weather_vars)
         p, d, q = order
         cycle = f"({seasonal[0]},{seasonal[1]},{seasonal[2]})₂₄" if any(seasonal) else f" + {k} гармоники суток"
-        self.key = f"arima_{p}{d}{q}_" + ("".join(map(str, seasonal)) if any(seasonal) else f"k{k}") + f"_w{window_days}"
-        self.name = f"ARIMA({p},{d},{q}){cycle}, окно {window_days} дн."
+        extra = f" + прогноз погоды ({', '.join(WEATHER_NAMES[v] for v in self.weather_vars)})" if weather_vars else ""
+        self.name = f"ARIMA({p},{d},{q}){cycle}{extra}, окно {window_days} дн."
         self.result = None
         self.end = None
 
-    def _model(self, y: pd.Series) -> SARIMAX:
-        seasonal = (*self.seasonal, 24) if any(self.seasonal) else (0, 0, 0, 0)
-        return SARIMAX(y.to_numpy(), exog=harmonics(y.index, self.k), order=self.order, seasonal_order=seasonal,
-                       enforce_stationarity=False, enforce_invertibility=False)
+    # внешние признаки прошедших часов: гармоники суток и погода (текущий расчёт d0)
+    def _exog(self, index: pd.DatetimeIndex) -> np.ndarray | None:
+        parts = [x for x in (harmonics(index, self.k),
+                             weather.history(index, self.weather_vars) if self.weather_vars else None) if x is not None]
+        return np.column_stack(parts) if parts else None
 
     def fit(self, history: pd.Series) -> None:
         y = history.iloc[-self.window_days * 24:]
+        if self.weather_vars:
+            y = y[y.index >= weather.START]  # раньше архива прогнозов погоды нет
+        seasonal = (*self.seasonal, 24) if any(self.seasonal) else (0, 0, 0, 0)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")  # предупреждения о сходимости оптимизатора – не ошибка
-            self.result = self._model(y).fit(disp=False, maxiter=200)
+            self.result = SARIMAX(y.to_numpy(), exog=self._exog(y.index), order=self.order, seasonal_order=seasonal,
+                                  enforce_stationarity=False, enforce_invertibility=False).fit(disp=False, maxiter=200)
         self.end = history.index[-1]
         self._forecast = None
 
     def predict(self, history: pd.Series, horizon: int) -> np.ndarray:
         new = history[history.index > self.end]
         if len(new):
-            self.result = self.result.extend(new.to_numpy(), exog=harmonics(new.index, self.k))
+            self.result = self.result.extend(new.to_numpy(), exog=self._exog(new.index))
             self.end = new.index[-1]
-        future = pd.date_range(self.end + timedelta(hours=1), periods=horizon, freq="h")
-        self._forecast = self.result.get_forecast(horizon, exog=harmonics(future.tz_convert(prep.TZ), self.k))
+        future = pd.date_range(self.end + timedelta(hours=1), periods=horizon, freq="h").tz_convert(prep.TZ)
+        parts = [x for x in (harmonics(future, self.k),
+                             weather.future(self.end, horizon, self.weather_vars) if self.weather_vars else None)
+                 if x is not None]
+        self._forecast = self.result.get_forecast(horizon, exog=np.column_stack(parts) if parts else None)
         return np.clip(self._forecast.predicted_mean, LOW, HIGH)
 
     # собственные (гауссовские) интервалы последнего прогноза

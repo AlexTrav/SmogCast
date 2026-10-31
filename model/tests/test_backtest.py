@@ -78,6 +78,17 @@ def test_run_blocks_matches_sequential_run():
     assert np.array_equal(parallel.pred, sequential.pred) and np.array_equal(parallel.actual, sequential.actual)
 
 
+def test_result_cache_roundtrip(tmp_path):
+    series = hourly(np.random.default_rng(5).normal(3, 0.3, 24 * 20))
+    result = backtest.run(baselines.Persistence(), series, backtest.origins(series, series.index[48], None,
+                                                                           horizon=24), horizon=24)
+    path = tmp_path / "cache" / "persistence.npz"
+    backtest.save_result(result, path)
+    loaded = backtest.load_result(path)
+    assert loaded.name == result.name and loaded.origins.equals(result.origins)
+    assert np.array_equal(loaded.pred, result.pred) and np.array_equal(loaded.actual, result.actual)
+
+
 def test_train_start_cuts_history():
     series = hourly(np.zeros(24 * 20))
     at = backtest.origins(series, series.index[24 * 10], None, horizon=24)
