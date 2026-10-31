@@ -1,0 +1,56 @@
+# собирает сайт и публикует его на GitHub Pages при каждом push в main, который затрагивает фронтенд
+name: Deploy site to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  # API на Render (бесплатный тариф засыпает – сайт показывает плашку «Сервер просыпается…»)
+  VITE_API_BASE_URL: https://smogcast-backend.onrender.com
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # та же стадия сборки, что в frontend/Dockerfile: автотесты, проверка типов и Vite с базовым путём /SmogCast/
+      - name: Test and build in Docker
+        run: |
+          docker build --target test -t smogcast-test frontend
+          docker run --rm smogcast-test
+          docker build --target build \
+            --build-arg VITE_API_BASE_URL="$VITE_API_BASE_URL" \
+            --build-arg BASE="/${{ github.event.repository.name }}/" \
+            -t smogcast-pages frontend
+          docker create --name pages smogcast-pages
+          docker cp pages:/app/dist ./dist
+      # GitHub Pages не умеет перенаправлять пути SPA на index.html – отдаём его и вместо 404
+      - name: SPA fallback for client-side routing
+        run: cp dist/index.html dist/404.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
