@@ -5,6 +5,7 @@ import { api } from '../api/client'
 import ExplainCard from '../components/home/ExplainCard.vue'
 import FactorList from '../components/home/FactorList.vue'
 import LevelScale from '../components/home/LevelScale.vue'
+import RecomputePanel from '../components/home/RecomputePanel.vue'
 import SkyHero from '../components/home/SkyHero.vue'
 import { useLive } from '../composables/useLive'
 import type { AppLocale, Explain, Forecast, Weather } from '../types'
@@ -153,6 +154,7 @@ const extremes = computed(() => {
             </table>
           </div>
         </details>
+        <RecomputePanel class="mt-5" />
       </section>
 
       <div class="space-y-6">

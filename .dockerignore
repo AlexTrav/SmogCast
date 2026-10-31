@@ -1,8 +1,15 @@
-# сборки из корня репозитория (образ API: backend/Dockerfile, Render) – в контекст идут только код API и отчёты моделей;
-# образы data и model собираются из своих папок, этот файл на них не влияет
+# сборки из корня репозитория (образ API: backend/Dockerfile, Render) – в контекст идут только код API, отчёты
+# моделей и лёгкие модели для пересчёта; образы data и model собираются из своих папок, этот файл на них не влияет
 *
 !backend/requirements.txt
 !backend/api
 !backend/tests
 !model/reports
+!model/light.py
+!model/lstm.py
+!model/baselines.py
+!model/backtest.py
+!model/weather.py
+!model/artifacts/live
+!research/prep.py
 **/__pycache__

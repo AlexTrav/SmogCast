@@ -11,9 +11,10 @@ test:
 	docker build --target test -t $(IMAGE)-test .
 	docker run --rm $(IMAGE)-test
 
-# собрать образ: проверка типов, сборка Vite, nginx
+# собрать образ: проверка типов, сборка Vite, nginx; API=<адрес> – другой API вместо Render
+# (например, make run API=http://localhost:8000 вместе с make -C backend run)
 build:
-	docker build -t $(IMAGE) .
+	docker build $(if $(API),--build-arg VITE_API_BASE_URL=$(API)) -t $(IMAGE) .
 
 # собранный сайт на http://localhost:8080 (данные – API на Render)
 run: build

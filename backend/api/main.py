@@ -18,7 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 
-from . import db, insight, levels, weather
+from . import db, insight, levels, recompute, weather
 from .common import DEFAULT_MODEL, TZ, cached, iso, now_ms, r1, record
 
 SCHEDULE_MINUTE = 17  # ежечасная задача стартует в xx:17 UTC и идёт около 3 минут
@@ -39,15 +39,16 @@ app = FastAPI(title="SmogCast API", version="1.0",
               lifespan=lifespan)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(CORSMiddleware, allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
-                   allow_methods=["GET"], expose_headers=["ETag", "Server-Timing"])
+                   allow_methods=["GET", "POST"], expose_headers=["ETag", "Server-Timing"])
 app.include_router(insight.router)
 app.include_router(weather.router)
+app.include_router(recompute.router)
 
 
 # пути точек API (считаются при первом запросе, когда все точки уже объявлены)
 @cache
 def api_paths() -> frozenset[str]:
-    routes = [*app.routes, *insight.router.routes, *weather.router.routes]
+    routes = [*app.routes, *insight.router.routes, *weather.router.routes, *recompute.router.routes]
     return frozenset(p for p in (getattr(r, "path", "") for r in routes) if p.startswith("/api/"))
 
 

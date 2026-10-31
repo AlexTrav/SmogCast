@@ -15,42 +15,33 @@ import numpy as np
 import pandas as pd
 
 import arima
-import baselines
 import final
-import lstm
-import prep
+import light
 import prophet_model
+from light import HORIZON, read_frame, weather_provider
 
 REPORTS = Path(__file__).resolve().parent / "reports" / "final"
-HORIZON = 72
-WEATHER_SQL = ", ".join(lstm.WEATHER)
 
 
-def factories(future_weather) -> dict:
+# лёгкие модели (light.py) и тяжёлые, которые считаются только здесь: ARIMA и Prophet;
+# frame – ряд с погодой для LSTM с погодой (прошлые часы)
+def factories(future_weather, frame: pd.DataFrame | None = None) -> dict:
     return {
-        "seasonal_24": lambda: baselines.SeasonalNaive(24, "seasonal_24", final.NAMES["seasonal_24"]),
-        "profile_7d": lambda: baselines.DailyProfile(7),
+        **light.factories(frame, future_weather),
         "arima": lambda: arima.Arima((2, 1, 3), k=12, window_days=90),
         "prophet": lambda: prophet_model.ProphetModel(),
-        "lstm": lambda: lstm.LstmModel("lstm", mode="live"),
-        "lstm_weather": lambda: lstm.LstmModel("lstm_weather", mode="live", frame=FRAME, future_weather=future_weather),
     }
-
-
-FRAME: pd.DataFrame | None = None  # ряд с погодой для LSTM с погодой (прошлые часы)
 
 
 # прогнозы всех моделей и смеси по умолчанию от последнего часа ряда: строки для model_forecasts, время моделей,
 # ошибки и части прогноза Prophet (None, если Prophet не отработал)
 def forecasts(frame: pd.DataFrame, future_weather, quantiles: dict,
               default: str) -> tuple[pd.DataFrame, dict, dict, pd.DataFrame | None]:
-    global FRAME
-    FRAME = frame
     series = np.log(frame["pm2_5"])
     origin = series.index[-1]
     times = pd.date_range(origin + pd.Timedelta(hours=1), periods=HORIZON, freq="h")
     predictions, timings, errors, components = {}, {}, {}, None
-    for key, factory in factories(future_weather).items():
+    for key, factory in factories(future_weather, frame).items():
         began = time.perf_counter()
         try:
             model = factory()
@@ -76,40 +67,7 @@ def forecasts(frame: pd.DataFrame, future_weather, quantiles: dict,
     return pd.concat(rows, ignore_index=True), timings, errors, components
 
 
-# ---------- база ----------
-def read_frame(conn) -> pd.DataFrame:
-    with conn.cursor() as cur:
-        cur.execute("select * from series order by time")
-        columns = [c.name for c in cur.description]
-        frame = pd.DataFrame(cur.fetchall(), columns=columns)
-    frame["time"] = pd.to_datetime(frame["time"], utc=True)
-    frame = frame.set_index("time").astype(float)
-    frame.index = frame.index.tz_convert(prep.TZ)
-    return prep.clean(frame)
-
-
-# прогноз погоды на часы после origin: для каждого часа – самый свежий из сохранённых снимков (все они
-# выпущены до момента расчёта); снимки пишутся только при изменении, поэтому берётся последний, где час есть
-def weather_provider(conn, origin: pd.Timestamp):
-    with conn.cursor() as cur:
-        cur.execute(f"select distinct on (time) time, {WEATHER_SQL} from weather_forecasts "
-                    "where time > %s and time <= %s order by time, issued_at desc",
-                    (origin.to_pydatetime(), (origin + pd.Timedelta(hours=HORIZON)).to_pydatetime()))
-        rows = cur.fetchall()
-    table = pd.DataFrame(rows, columns=["time", *lstm.WEATHER])
-    table["time"] = pd.to_datetime(table["time"], utc=True)
-    table = table.set_index("time").astype(float)
-
-    def provider(at: pd.Timestamp, horizon: int, variables: tuple[str, ...]) -> np.ndarray:
-        times = pd.date_range(at + pd.Timedelta(hours=1), periods=horizon, freq="h").tz_convert("UTC")
-        part = table.reindex(times)
-        if part[list(variables)].isna().any().any():
-            raise ValueError(f"нет прогноза погоды на часы {times[0]} … {times[-1]}")
-        return np.column_stack([lstm.weather.transform(v, part[v].to_numpy()) for v in variables])
-
-    return provider
-
-
+# ---------- база (чтение ряда и прогноза погоды – read_frame и weather_provider из light.py) ----------
 def write(conn, rows: pd.DataFrame) -> int:
     columns = list(rows.columns)
     values = [tuple(v.to_pydatetime() if isinstance(v, pd.Timestamp) else (v if isinstance(v, str) else float(v))

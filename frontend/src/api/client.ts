@@ -1,4 +1,15 @@
-import type { DailyHistory, Explain, Forecast, HourlyHistory, ModelsReport, Performance, Status, Verify, Weather } from '../types'
+import type {
+  DailyHistory,
+  Explain,
+  Forecast,
+  HourlyHistory,
+  ModelsReport,
+  Performance,
+  Recompute,
+  Status,
+  Verify,
+  Weather,
+} from '../types'
 
 // адрес API: в dev – .env.development, в сборке – аргумент Docker (по умолчанию API на Render)
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://smogcast-backend.onrender.com'
@@ -10,15 +21,18 @@ const SLOW_AFTER_MS = 2500
 // пока Render будит сервис, его прокси отвечает 502/503/504
 const WAKING_STATUSES = new Set([502, 503, 504])
 
+// retryAfter – через сколько секунд можно повторить (ответ 429 у пересчёта)
 export class ApiError extends Error {
   code: string
   status: number
+  retryAfter: number
 
-  constructor(code: string, status = 0) {
+  constructor(code: string, status = 0, retryAfter = 0) {
     super(code)
     this.name = 'ApiError'
     this.code = code
     this.status = status
+    this.retryAfter = retryAfter
   }
 }
 
@@ -31,13 +45,13 @@ export function listenServer(listener: (signal: ServerSignal) => void) {
 
 // cache: 'no-cache' – браузер переспрашивает сервер с If-None-Match и, пока данные те же, получает пустой 304,
 // а тело берёт из своего кэша: опрос раз в минуту почти ничего не стоит
-export async function request<T>(path: string, timeoutMs = TIMEOUT_MS): Promise<T> {
+export async function request<T>(path: string, timeoutMs = TIMEOUT_MS, method: 'GET' | 'POST' = 'GET'): Promise<T> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   const slow = setTimeout(() => onServerSignal('slow'), SLOW_AFTER_MS)
   let res: Response
   try {
-    res = await fetch(`${API_BASE}${path}`, { signal: controller.signal, cache: 'no-cache' })
+    res = await fetch(`${API_BASE}${path}`, { method, signal: controller.signal, cache: 'no-cache' })
   } catch (err) {
     onServerSignal('fail')
     throw new ApiError((err as Error).name === 'AbortError' ? 'timeout' : 'network')
@@ -50,6 +64,11 @@ export async function request<T>(path: string, timeoutMs = TIMEOUT_MS): Promise<
     throw new ApiError('waking', res.status)
   }
   onServerSignal('ok') // сервер ответил – даже ошибкой 4xx, значит, он не спит
+  if (res.status === 429) {
+    // заголовок Retry-After браузер через CORS не отдаёт – причина и время ожидания есть в теле ответа
+    const body = (await res.json().catch(() => null)) as { detail?: { error?: string; retry_after?: number } } | null
+    throw new ApiError(body?.detail?.error ?? 'http_429', 429, body?.detail?.retry_after ?? 0)
+  }
   if (!res.ok) throw new ApiError(`http_${res.status}`, res.status)
   return res.json() as Promise<T>
 }
@@ -70,4 +89,6 @@ export const api = {
   models: () => request<ModelsReport>('/api/models'),
   verify: (days = 7) => request<Verify>(`/api/verify?days=${days}`),
   performance: (hours = 48) => request<Performance>(`/api/performance?hours=${hours}`),
+  // лёгкие модели заново на сервере; не чаще раза в 30 с (иначе ApiError too_often или busy)
+  recompute: () => request<Recompute>('/api/recompute', TIMEOUT_MS, 'POST'),
 }

@@ -153,3 +153,23 @@ export interface Weather {
   values: Record<string, (number | null)[]>
   factors: Factor[]
 }
+
+// кнопка «Пересчитать сейчас»: лёгкие модели заново от того же часа ряда; ms – время модели,
+// diff – наибольшее отличие от ежечасного расчёта (мкг/м³), cached – этот час уже пересчитывали
+export interface RecomputeModel {
+  model: string
+  ms: number | null
+  diff: number | null
+  error: string | null
+  pred: number[] | null
+}
+
+export interface Recompute {
+  issued_at: string
+  computed_at: string
+  total_ms: number
+  cached: boolean
+  reused: string[]
+  skipped: string[]
+  models: RecomputeModel[]
+}

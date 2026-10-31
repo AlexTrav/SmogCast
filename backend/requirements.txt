@@ -2,5 +2,8 @@ fastapi==0.162.0
 uvicorn==0.54.0
 psycopg[binary]==3.3.6
 psycopg-pool==3.3.3
+# пересчёт лёгких моделей по кнопке (те же версии, что в образе model)
+pandas==3.1.0
+onnxruntime==1.31.1
 pytest==9.2.0
 httpx2==2.16.0

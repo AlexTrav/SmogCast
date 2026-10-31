@@ -11,11 +11,18 @@ services:
     dockerContext: .
     healthCheckPath: /api/health
     autoDeployTrigger: commit
-    # пересобирать только при изменении API или отчётов моделей
+    # пересобирать только при изменении API, отчётов моделей или лёгких моделей для пересчёта
     buildFilter:
       paths:
         - backend/**
         - model/reports/**
+        - model/artifacts/live/**
+        - model/light.py
+        - model/lstm.py
+        - model/baselines.py
+        - model/backtest.py
+        - model/weather.py
+        - research/prep.py
         - .dockerignore
         - render.yaml
     envVars:
