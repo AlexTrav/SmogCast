@@ -6,7 +6,7 @@ import psycopg
 import pytest
 from fastapi.testclient import TestClient
 
-from api import db, main
+from api import common, db, main
 
 START = datetime(2026, 10, 1, tzinfo=timezone.utc)
 HOURS = 240  # 10 суток ряда
@@ -26,7 +26,7 @@ def conn():
         conn.execute(f"truncate {TABLES} restart identity")
         conn.commit()
         db.reset_version()
-        main._cache.clear()
+        common._cache.clear()
         yield conn
 
 
@@ -39,8 +39,8 @@ def filled(conn):
                         [(START + timedelta(hours=i), pm(i), *[1.0] * (len(FIELDS) - 1)) for i in range(HOURS)])
         cur.execute("insert into runs (started_at, duration_ms, status, hours_added) values (%s, 900, 'ok', 1)",
                     (LAST + timedelta(minutes=77),))
-        cur.execute("insert into model_runs (started_at, issued_at, duration_ms, status) values (%s, %s, 60000, 'ok')",
-                    (LAST + timedelta(minutes=79), LAST))
+        cur.execute("insert into model_runs (started_at, issued_at, duration_ms, model_ms, status) "
+                    "values (%s, %s, 60000, '{\"arima\": 11000, \"lstm\": 40}', 'ok')", (LAST + timedelta(minutes=79), LAST))
         times = [LAST + timedelta(hours=h) for h in range(1, 73)]
         for model, value in ((main.DEFAULT_MODEL, 20.0), ("arima", 30.0)):
             cur.executemany("insert into model_forecasts values (%s, %s, %s, %s, %s, %s, %s, %s)",

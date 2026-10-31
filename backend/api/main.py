@@ -6,12 +6,10 @@
 
     uvicorn api.main:app   # локально: make -C backend run
 """
-import hashlib
-import json
 import os
 from contextlib import asynccontextmanager
-from datetime import date, datetime, timedelta, timezone
-from pathlib import Path
+from functools import cache
+from datetime import date, timedelta
 from typing import Literal
 
 import psycopg
@@ -20,16 +18,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
-from . import db, levels
+from . import db, insight, levels, weather
+from .common import DEFAULT_MODEL, TZ, cached, iso, now_ms, r1, record
 
-REPORTS = Path(os.environ.get("REPORTS", Path(__file__).resolve().parents[2] / "model" / "reports"))
-DEFAULT_MODEL = json.loads((REPORTS / "final" / "selection.json").read_text(encoding="utf-8"))["default"]
-TZ = "Asia/Almaty"
 SCHEDULE_MINUTE = 17  # ежечасная задача стартует в xx:17 UTC и идёт около 3 минут
 FIELDS = ("pm2_5", "pm10", "no2", "co", "so2", "dust", "temp", "rh", "dew", "wind", "wind_dir", "pressure",
           "precip", "cloud")
 MAX_FIELDS = 4
-CACHE_LIMIT = 128
 
 
 @asynccontextmanager
@@ -44,39 +39,34 @@ app = FastAPI(title="SmogCast API", version="1.0",
               lifespan=lifespan)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(CORSMiddleware, allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
-                   allow_methods=["GET"], expose_headers=["ETag"])
+                   allow_methods=["GET"], expose_headers=["ETag", "Server-Timing"])
+app.include_router(insight.router)
+app.include_router(weather.router)
+
+
+# пути точек API (считаются при первом запросе, когда все точки уже объявлены)
+@cache
+def api_paths() -> frozenset[str]:
+    routes = [*app.routes, *insight.router.routes, *weather.router.routes]
+    return frozenset(p for p in (getattr(r, "path", "") for r in routes) if p.startswith("/api/"))
+
+
+# время ответа каждой точки API: заголовок Server-Timing (виден в DevTools) и сводка для /api/performance;
+# считаются только известные пути, чтобы случайные адреса не раздували сводку
+@app.middleware("http")
+async def timing(request: Request, call_next):
+    began = now_ms()
+    response = await call_next(request)
+    ms = now_ms() - began
+    response.headers["Server-Timing"] = f"app;dur={ms:.1f}"
+    if request.url.path in api_paths():
+        record(request.url.path, response.status_code, ms)
+    return response
 
 
 @app.exception_handler(psycopg.OperationalError)
 def database_down(_: Request, error: psycopg.OperationalError) -> JSONResponse:
     return JSONResponse({"detail": "база недоступна"}, status_code=503)
-
-
-# ---------- кэш ответов по версии данных ----------
-_cache: dict[str, tuple[str, bytes, str]] = {}  # ключ запроса -> (версия данных, тело, ETag)
-
-
-def cached(request: Request, key: str, build) -> Response:
-    current = db.version()
-    entry = _cache.get(key)
-    if entry is None or entry[0] != current:
-        body = json.dumps(build(), ensure_ascii=False, separators=(",", ":")).encode()
-        entry = (current, body, f'"{hashlib.sha1(body).hexdigest()[:20]}"')
-        if len(_cache) >= CACHE_LIMIT:
-            _cache.clear()
-        _cache[key] = entry
-    headers = {"ETag": entry[2], "Cache-Control": "no-cache"}
-    if request.headers.get("if-none-match") == entry[2]:
-        return Response(status_code=304, headers=headers)
-    return Response(entry[1], media_type="application/json", headers=headers)
-
-
-def iso(value: datetime | None) -> str | None:
-    return None if value is None else value.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-
-def r1(value) -> float | None:
-    return None if value is None else round(float(value), 1)
 
 
 # ---------- точки API ----------
