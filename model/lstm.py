@@ -88,9 +88,12 @@ class LstmModel:
     наблюдения на входе. Прошлая погода – из ряда (известна до момента прогноза), будущая – прогноз,
     опубликованный к моменту прогноза (weather.future)."""
 
-    def __init__(self, variant: str = "lstm", directory: Path = ARTIFACTS, frame: pd.DataFrame | None = None) -> None:
+    # mode – режим обучения (папка artifacts/<mode>): validation – до 01.10.2024, test – до 01.10.2025, live – все данные
+    def __init__(self, variant: str = "lstm", directory: Path | None = None, frame: pd.DataFrame | None = None,
+                 mode: str = "validation") -> None:
         import onnxruntime as ort  # только там, где модель реально считает
 
+        directory = directory or ARTIFACTS / mode
         meta = json.loads((directory / f"{variant}.json").read_text(encoding="utf-8"))
         self.name, self.norm, self.variables = meta["name"], meta["norm"], tuple(meta["weather"])
         options = ort.SessionOptions()

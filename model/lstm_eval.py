@@ -35,7 +35,7 @@ def main() -> None:
         first = start - timedelta(days=365) if not model.variables else lstm.weather.START + timedelta(days=8)
         calibration = backtest.run(model, series, backtest.origins(series, first, start))
         backtest.add_intervals(results[variant], backtest.interval_quantiles(calibration))
-        meta = json.loads((lstm.ARTIFACTS / f"{variant}.json").read_text(encoding="utf-8"))
+        meta = json.loads((lstm.ARTIFACTS / "validation" / f"{variant}.json").read_text(encoding="utf-8"))
         report["training"][variant] = {k: meta[k] for k in ("epochs", "hold_loss", "torch", "created")}
         report["models"][variant] = {"name": results[variant].name, **backtest.summary(results[variant], reference)}
         report["mae_by_horizon"][variant] = np.round(backtest.horizon_metrics(results[variant])["mae"], 4).tolist()
