@@ -13,7 +13,7 @@ export interface HourPoint {
 }
 
 export interface DayOutlook {
-  offset: number // 0 – сегодня, 1 – завтра, 2 – послезавтра
+  offset: number // 0 – сегодня, 1 – завтра, 2 – послезавтра, 3 – через два дня (если сегодня часов уже нет)
   date: Date
   hours: HourPoint[]
   min: number
@@ -36,9 +36,10 @@ export function hoursOf(f: Forecast): HourPoint[] {
   return f.pred.map((pm, i) => ({ time: new Date(t0 + i * HOUR), pm, level: levelOf(pm) }))
 }
 
-// сутки сегодня, завтра и послезавтра по местному времени; сегодня – оставшиеся часы
+// три ближайших суток по местному времени: сегодня (оставшиеся часы), завтра, послезавтра; поздно вечером,
+// когда от сегодня в прогнозе не осталось ни часа, – завтра, послезавтра и следующий день
 export function dayOutlook(points: HourPoint[], now: Date): DayOutlook[] {
-  const days = [0, 1, 2].map((offset) => ({ offset, key: localDay(now, offset) }))
+  const days = [0, 1, 2, 3].map((offset) => ({ offset, key: localDay(now, offset) }))
   return days.flatMap(({ offset, key }) => {
     const hours = points.filter((p) => localDay(p.time) === key)
     if (!hours.length) return []
@@ -50,7 +51,7 @@ export function dayOutlook(points: HourPoint[], now: Date): DayOutlook[] {
       offset, date: hours[0].time, hours, min: best.pm, max: peak.pm,
       level: levelOf(mean), worst: peak.level, peak, best,
     }]
-  })
+  }).slice(0, 3)
 }
 
 // самое чистое окно из length часов подряд, целиком внутри [from, to) по местному времени тех же суток

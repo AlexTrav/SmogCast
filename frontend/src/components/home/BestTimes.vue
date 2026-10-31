@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { useSensitive } from '../../composables/useSensitive'
 import type { AppLocale } from '../../types'
 import { LEVEL_COLOR } from '../../utils/aqi'
-import { formatHour, formatNumber } from '../../utils/format'
+import { formatDay, formatHour, formatNumber } from '../../utils/format'
 import { type DayOutlook, type Window, windows } from '../../utils/outlook'
 
 // «Когда лучше выйти»: самые чистые часы сегодня и завтра для прогулки и для проветривания
@@ -14,7 +14,7 @@ const { t, locale } = useI18n()
 const lang = computed(() => locale.value as AppLocale)
 const DAY_NAMES = ['outlook.today', 'outlook.tomorrow', 'outlook.after']
 
-const rows = computed(() => props.days.slice(0, 2).map((d) => ({ offset: d.offset, ...windows(d) })))
+const rows = computed(() => props.days.slice(0, 2).map((d) => ({ offset: d.offset, date: d.date, ...windows(d) })))
 const kinds = computed(() => [
   { key: 'walk' as const, icon: Footprints, title: t('outlook.walk'), note: t('outlook.walkNote') },
   { key: 'air' as const, icon: Wind, title: t('outlook.air'), note: t('outlook.airNote') },
@@ -41,7 +41,7 @@ const span = (w: Window, kind: 'walk' | 'air') =>
       </h3>
       <ul class="mt-2 space-y-1.5">
         <li v-for="r in rows" :key="r.offset" class="flex flex-wrap items-baseline gap-x-2 text-sm">
-          <span class="w-20 shrink-0 text-muted">{{ t(DAY_NAMES[r.offset]) }}</span>
+          <span class="w-20 shrink-0 text-muted">{{ DAY_NAMES[r.offset] ? t(DAY_NAMES[r.offset]) : formatDay(r.date, lang) }}</span>
           <template v-if="r[k.key]">
             <span class="num font-semibold text-ink">{{ span(r[k.key]!, k.key) }}</span>
             <span class="inline-flex items-center gap-1.5 text-muted">

@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { Navigation2, Pause, Play, Share2, Sunrise, Sunset, X } from 'lucide-vue-next'
+import { CircleCheck, Droplets, Navigation2, Pause, Play, RefreshCw, Share2, Sunrise, Sunset, Thermometer, TriangleAlert, X } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { useCountUp } from '../../composables/useCountUp'
 import { useLive } from '../../composables/useLive'
+import { useRecompute } from '../../composables/useRecompute'
 import { useSensitive } from '../../composables/useSensitive'
 import type { AppLocale, Forecast } from '../../types'
 import { aqiOf, levelOf, WHO_24H } from '../../utils/aqi'
 import { countdown, formatDateHour, formatHour, formatNumber } from '../../utils/format'
 import { drawCard, shareCard } from '../../utils/share'
+import { modelColor } from '../../utils/models'
 import { skyPhase, type SkyPhase, sunTimes } from '../../utils/sun'
 import LevelBadge from '../LevelBadge.vue'
 import TermHint from '../TermHint.vue'
@@ -23,6 +25,8 @@ const { t, locale } = useI18n()
 const lang = computed(() => locale.value as AppLocale)
 const { status: live, now, next, updating } = useLive()
 const { sensitive } = useSensitive()
+// «Обновить сейчас» – пересчёт быстрых моделей на сервере и свежее состояние; результат – плашкой ниже
+const { result: recomputed, running, problem, wait, run: recompute, close: closeRecompute, modelsMs, diff } = useRecompute()
 const route = useRoute()
 
 // предпросмотр для показа: ?sky=day|dawn|dusk|night и ?pm=… подменяют фазу неба и PM2.5 (данные API не меняются)
@@ -83,10 +87,12 @@ const sun = computed(() => sunTimes(now.value))
 const pm = computed(() => status.value?.pm2_5 ?? 0)
 const shownPm = useCountUp(computed(() => status.value?.pm2_5), 1100)
 const who = computed(() => pm.value / WHO_24H)
+// изменение за сутки словами: «на 15,3 меньше, чем сутки назад»
 const change = computed(() => {
   const c = status.value?.change_24h
   if (c == null) return null
-  return `${c > 0 ? '+' : c < 0 ? '−' : '±'}${formatNumber(Math.abs(c), lang.value)}`
+  if (Math.abs(c) < 0.5) return t('hero.changeSame')
+  return t(c > 0 ? 'hero.changeUp' : 'hero.changeDown', { value: formatNumber(Math.abs(c), lang.value) })
 })
 // «Поделиться»: карточка PNG с небом и текущим PM2.5
 async function share() {
@@ -107,7 +113,23 @@ async function share() {
 }
 
 // стрелка показывает, куда дует ветер: направление в данных – откуда, поэтому +180°
-const windArrow = computed(() => (props.windDir == null ? 0 : (props.windDir + 180) % 360))
+const nowWeather = computed(() => live.value?.weather ?? null)
+const windNow = computed(() => nowWeather.value?.wind ?? props.wind ?? null)
+const windArrow = computed(() => {
+  const dir = nowWeather.value?.wind_dir ?? props.windDir
+  return dir == null ? 0 : (dir + 180) % 360
+})
+// «Над городом»: погода последнего часа ряда и восход с закатом
+const aboveCity = computed(() => {
+  const w = nowWeather.value
+  const rows: { term: string; label: string; icon: unknown; value: string; rotate?: number }[] = []
+  if (w?.temp != null) rows.push({ term: 'temp', label: t('hero.temp'), icon: Thermometer, value: t('hero.tempValue', { value: formatNumber(w.temp, lang.value) }) })
+  if (w?.rh != null) rows.push({ term: 'rh', label: t('hero.rh'), icon: Droplets, value: t('hero.rhValue', { value: formatNumber(w.rh, lang.value, 0) }) })
+  if (windNow.value != null) rows.push({ term: 'wind', label: t('hero.wind'), icon: Navigation2, value: t('hero.windValue', { value: formatNumber(windNow.value, lang.value) }), rotate: windArrow.value })
+  rows.push({ term: 'sun', label: t('hero.sunrise'), icon: Sunrise, value: formatHour(sun.value.sunrise, lang.value) })
+  rows.push({ term: 'sun', label: t('hero.sunset'), icon: Sunset, value: formatHour(sun.value.sunset, lang.value) })
+  return rows
+})
 </script>
 
 <template>
@@ -138,14 +160,25 @@ const windArrow = computed(() => (props.windDir == null ? 0 : (props.windDir + 1
             </span>
             <span class="mb-3 text-xl text-white/80 sm:mb-5">{{ t('hero.unit') }}</span>
           </div>
+          <!-- честно: это не замер на улице, а оценка модели CAMS на клетку около 45 км, куда попадает весь город -->
+          <p class="animate-rise relative z-10 mt-3 flex items-center gap-2 text-sm text-white/75" style="animation-delay: 170ms">
+            {{ t('hero.scope') }} <TermHint term="scope" glass />
+          </p>
 
           <div class="animate-rise mt-6 flex flex-wrap items-center gap-3" style="animation-delay: 200ms">
             <LevelBadge :level="status.level" glass />
             <span class="rounded-full bg-white/15 px-3.5 py-1.5 text-sm font-semibold ring-1 ring-white/25 backdrop-blur-md lg:hidden">
               US AQI <span class="tabular-nums">{{ status.aqi }}</span>
             </span>
-            <span v-if="change" class="text-sm text-white/80">{{ t('hero.change', { value: change }) }}</span>
+            <span v-if="change" class="flex items-center gap-1.5 text-sm text-white/80">{{ change }} <TermHint term="change" glass /></span>
           </div>
+          <!-- на телефоне карточки «Над городом» нет – погода строкой -->
+          <p v-if="nowWeather?.temp != null" class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-white/80 lg:hidden">
+            <span>{{ t('hero.tempValue', { value: formatNumber(nowWeather.temp, lang) }) }}</span>
+            <span v-if="windNow != null">· {{ t('hero.wind') }} {{ t('hero.windValue', { value: formatNumber(windNow, lang) }) }}</span>
+            <span v-if="nowWeather.rh != null">· {{ t('hero.rh') }} {{ t('hero.rhValue', { value: formatNumber(nowWeather.rh, lang, 0) }) }}</span>
+            <TermHint term="temp" glass />
+          </p>
 
           <p class="animate-rise mt-6 max-w-xl text-lg leading-relaxed text-white/90" style="animation-delay: 260ms">
             {{ t(sensitive ? `adviceSensitive.${status.level}` : `advice.${status.level}`) }}
@@ -162,7 +195,17 @@ const windArrow = computed(() => (props.windDir == null ? 0 : (props.windDir + 1
             >
               <template v-if="updating">{{ t('hero.updating') }}</template>
               <template v-else>{{ t('hero.nextUpdate', { time: countdown(next.getTime() - now.getTime()) }) }}</template>
+              <TermHint term="schedule" glass />
             </p>
+            <button
+              v-ripple
+              class="inline-flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
+              :disabled="running || wait > 0"
+              @click="recompute"
+            >
+              <RefreshCw class="h-4 w-4" :class="running ? 'animate-spin' : ''" aria-hidden="true" />
+              <span class="tabular-nums">{{ running ? t('recompute.running') : wait > 0 ? t('recompute.wait', { s: wait }) : t('recompute.button') }}</span>
+            </button>
             <button
               v-ripple
               class="inline-flex items-center gap-2 rounded-full bg-black/20 px-4 py-2 text-sm font-medium ring-1 ring-white/25 backdrop-blur-md transition-colors hover:bg-black/30"
@@ -180,6 +223,48 @@ const windArrow = computed(() => (props.windDir == null ? 0 : (props.windDir + 1
               <component :is="playing ? Pause : Play" class="h-4 w-4" aria-hidden="true" />
               {{ playing ? t('hero.pause') : t('hero.play') }}
             </button>
+          </div>
+
+          <!-- результат «Обновить сейчас»: время каждой быстрой модели и сравнение с ежечасным расчётом -->
+          <div
+            v-if="recomputed || problem"
+            class="mt-4 max-w-xl rounded-2xl bg-black/25 p-4 text-sm ring-1 ring-white/15 backdrop-blur-md"
+            role="status"
+            aria-live="polite"
+          >
+            <div class="flex items-start justify-between gap-3">
+              <p v-if="problem" class="flex items-center gap-2">
+                <TriangleAlert class="h-4 w-4 shrink-0 text-amber-300" aria-hidden="true" />{{ t(`recompute.${problem}`, { s: wait }) }}
+              </p>
+              <p v-else-if="recomputed" class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <CircleCheck class="h-4 w-4 shrink-0 text-emerald-300" aria-hidden="true" />
+                <span class="font-semibold">{{ t('recompute.done', { s: formatNumber(modelsMs / 1000, lang, 2) }) }}</span>
+                <TermHint term="recompute" glass />
+              </p>
+              <button class="rounded-full p-1 text-white/70 hover:bg-white/15 hover:text-white" :aria-label="t('recompute.close')" @click="closeRecompute">
+                <X class="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+            <template v-if="recomputed && !problem">
+              <ul class="mt-3 flex flex-wrap gap-2">
+                <li
+                  v-for="m in recomputed.models.filter((x) => x.ms != null)"
+                  :key="m.model"
+                  class="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-xs tabular-nums"
+                >
+                  <span class="h-2 w-2 rounded-full" :style="{ background: modelColor(m.model) }" />
+                  {{ t(`modelNames.${m.model}`) }} · {{ m.error ? t('recompute.error') : t('recompute.ms', { n: formatNumber(m.ms as number, lang, 1) }) }}
+                </li>
+              </ul>
+              <p class="mt-3 flex items-center gap-2 text-white/85">
+                {{ diff != null && diff < 0.05 ? t('recompute.same') : diff != null ? t('recompute.diff', { value: formatNumber(diff, lang) }) : '' }}
+                <TermHint v-if="diff != null" term="match" glass />
+              </p>
+              <p class="mt-1 text-white/70">
+                {{ t('recompute.total', { s: formatNumber(recomputed.total_ms / 1000, lang, 2) }) }}
+                <template v-if="recomputed.cached"> · {{ t('recompute.cached', { time: formatHour(recomputed.computed_at, lang) }) }}</template>
+              </p>
+            </template>
           </div>
 
           <!-- ползунок по часам прогноза: виден, пока прогноз проигрывается или стоит на паузе -->
@@ -223,20 +308,15 @@ const windArrow = computed(() => (props.windDir == null ? 0 : (props.windDir + 1
           <span class="text-4xl font-light tabular-nums">{{ status.aqi }}</span>
           <span class="ml-1.5 text-sm text-white/70">US AQI</span>
         </p>
-        <dl class="mt-5 grid grid-cols-3 gap-2 border-t border-white/15 pt-4 text-center text-sm">
-          <div>
-            <dt class="flex justify-center text-white/60"><Sunrise class="h-4 w-4" :aria-label="t('hero.sunrise')" /></dt>
-            <dd class="mt-1 tabular-nums">{{ formatHour(sun.sunrise, lang) }}</dd>
-          </div>
-          <div>
-            <dt class="flex justify-center text-white/60"><Sunset class="h-4 w-4" :aria-label="t('hero.sunset')" /></dt>
-            <dd class="mt-1 tabular-nums">{{ formatHour(sun.sunset, lang) }}</dd>
-          </div>
-          <div v-if="wind != null">
-            <dt class="flex justify-center text-white/60">
-              <Navigation2 class="h-4 w-4 transition-transform" :style="{ transform: `rotate(${windArrow}deg)` }" :aria-label="t('hero.wind')" />
+        <!-- погода того же часа и солнце: у каждого – подпись и «?» с объяснением, как это влияет на смог -->
+        <dl class="mt-5 grid grid-cols-3 gap-x-2 gap-y-4 border-t border-white/15 pt-4 text-center text-sm">
+          <div v-for="item in aboveCity" :key="item.term">
+            <dt class="flex items-center justify-center gap-1 text-xs text-white/65">
+              <component :is="item.icon" class="h-3.5 w-3.5 shrink-0" :style="item.rotate == null ? undefined : { transform: `rotate(${item.rotate}deg)` }" aria-hidden="true" />
+              {{ item.label }}
+              <TermHint :term="item.term" glass />
             </dt>
-            <dd class="mt-1 tabular-nums">{{ t('hero.windValue', { value: formatNumber(wind, lang) }) }}</dd>
+            <dd class="mt-1 tabular-nums">{{ item.value }}</dd>
           </div>
         </dl>
       </aside>

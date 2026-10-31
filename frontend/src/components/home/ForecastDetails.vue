@@ -7,13 +7,12 @@ import type { AppLocale, Forecast } from '../../types'
 import { formatDateHour, formatNumber } from '../../utils/format'
 import { modelColor, sortModels } from '../../utils/models'
 import TermHint from '../TermHint.vue'
-import RecomputePanel from './RecomputePanel.vue'
 
 // график – отдельным чанком вместе с ECharts: загружается, только когда раскрыли подробности
 const ForecastChart = defineAsyncComponent(() => import('./ForecastChart.vue'))
 
 // подробный прогноз: модели галочками (можно сравнить несколько на одном графике), горизонт 1/2/3 суток,
-// веер и CAMS – по переключателям; таблица значений и «Пересчитать сейчас»
+// веер и CAMS – по переключателям; таблица значений
 const props = defineProps<{ main: Forecast; actual: { start: string; values: (number | null)[] } | null }>()
 const { t, locale } = useI18n()
 const lang = computed(() => locale.value as AppLocale)
@@ -191,6 +190,5 @@ const extremes = computed(() => {
         </table>
       </div>
     </details>
-    <RecomputePanel class="mt-5" />
   </div>
 </template>

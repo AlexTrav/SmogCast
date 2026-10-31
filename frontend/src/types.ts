@@ -10,6 +10,8 @@ export interface Status {
   aqi: number
   level: AqiLevel
   change_24h: number | null
+  // погода того же часа: °C, %, км/ч, откуда дует (°)
+  weather: { temp: number | null; rh: number | null; wind: number | null; wind_dir: number | null }
   data_run: { at: string; duration_ms: number; status: string; hours_added: number | null } | null
   model_run: { at: string; issued_at: string; duration_ms: number; status: string } | null
   default_model: string

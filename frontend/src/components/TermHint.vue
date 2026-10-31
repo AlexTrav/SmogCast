@@ -4,7 +4,8 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 // значок «?» у термина: по нажатию – короткое объяснение простыми словами; закрывается кликом мимо или Esc
-defineProps<{ term: 'pm25' | 'aqi' | 'band' | 'cams' | 'who' | 'blend'; glass?: boolean }>()
+// term – ключ в разделе terms локалей: terms.<term>Name – название, terms.<term> – объяснение
+defineProps<{ term: string; glass?: boolean }>()
 const { t } = useI18n()
 const open = ref(false)
 const right = ref(false) // у правого края экрана подсказка раскрывается влево

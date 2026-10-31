@@ -28,6 +28,7 @@ def test_status_reports_last_hour_and_runs(client, filled):
     assert body["aqi"] == levels.aqi(last) and body["level"] == "moderate"
     assert body["change_24h"] == 0  # час сутками раньше – то же значение суточного цикла
     assert body["data_run"]["status"] == "ok" and body["model_run"]["issued_at"] == body["time"]
+    assert body["weather"] == {"temp": 1.0, "rh": 1.0, "wind": 1.0, "wind_dir": 1.0}  # погода того же часа ряда
 
 
 def test_status_is_not_modified_until_new_data(client, filled):

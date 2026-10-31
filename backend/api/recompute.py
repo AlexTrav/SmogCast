@@ -82,13 +82,15 @@ def compute() -> dict:
             stored.setdefault(model, []).append(pred)
     series = np.log(frame["pm2_5"])
     predictions, models = {}, []
-    # загрузка модели (чтение ONNX, запуск onnxruntime) – отдельно от самого расчёта: иначе первая LSTM
-    # «платила» бы за запуск библиотеки и казалась бы в десятки раз медленнее второй
+    # загрузка модели (чтение ONNX, запуск onnxruntime и один прогревочный прогноз) – отдельно от самого
+    # расчёта: первый прогон сессии ONNX в десятки раз дольше следующих, и без прогрева модели нельзя сравнить
     for key, factory in light.factories(frame, provider).items():
         started = time.perf_counter()
         load_ms, error = None, None
         try:
             model = factory()
+            model.fit(series)
+            model.predict(series, light.HORIZON)
             load_ms = round((time.perf_counter() - started) * 1000, 1)
             started = time.perf_counter()
             model.fit(series)

@@ -50,6 +50,10 @@ watch(() => status.value?.time, load, { immediate: true })
 const points = computed(() => (main.value ? hoursOf(main.value) : []))
 const days = computed(() => dayOutlook(points.value, new Date()))
 const day = ref(0)
+// выбранные сутки – среди показанных (поздно вечером первая карточка – уже завтра)
+watch(days, (list) => {
+  if (list.length && !list.some((d) => d.offset === day.value)) day.value = list[0].offset
+})
 const current = computed(() => (status.value ? { pm: status.value.pm2_5, time: status.value.time } : null))
 // подробный график с моделями – по кнопке, ECharts загружается только тогда
 const expanded = ref(false)
@@ -79,7 +83,15 @@ const windDir = computed(() => weather.value?.values.wind_dir?.[0] ?? null)
             <div v-for="i in 3" :key="i" class="h-44 skeleton rounded-2xl bg-surface-2" />
           </div>
           <h3 class="mt-6 text-sm font-semibold text-muted">{{ t('outlook.hourly') }}</h3>
-          <HourlyStrip v-if="points.length" class="mt-2" :points="points" :now="current" :day="day" />
+          <HourlyStrip
+            v-if="points.length"
+            class="mt-2"
+            :points="points"
+            :now="current"
+            :day="day"
+            :weather="weather"
+            :now-weather="status?.weather ?? null"
+          />
           <div v-else class="mt-2 h-32 skeleton rounded-2xl bg-surface-2" />
 
           <button v-ripple class="btn-ghost mt-5" data-tour="more" :aria-expanded="expanded" aria-controls="details" @click="expanded = !expanded">

@@ -30,8 +30,8 @@ const FEW = 4
         <!-- полоса цвета уровня сверху: цвет дублируется значком и подписью -->
         <span class="absolute inset-x-0 top-0 h-1" :style="{ background: LEVEL_COLOR[d.level] }" />
         <span class="flex items-baseline justify-between gap-2">
-          <span class="font-semibold text-ink">{{ t(NAMES[d.offset]) }}</span>
-          <span class="text-xs text-faint">{{ formatDay(d.date, lang) }}</span>
+          <span class="font-semibold text-ink">{{ NAMES[d.offset] ? t(NAMES[d.offset]) : formatDay(d.date, lang) }}</span>
+          <span v-if="NAMES[d.offset]" class="text-xs text-faint">{{ formatDay(d.date, lang) }}</span>
         </span>
         <span class="mt-3 flex items-center gap-2.5">
           <span

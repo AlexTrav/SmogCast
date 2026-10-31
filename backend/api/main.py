@@ -85,15 +85,16 @@ def health() -> dict:
 
 @app.get("/api/status")
 def status(request: Request) -> Response:
-    """PM2.5 в последний час ряда, уровень US AQI и время последних ежечасных запусков."""
+    """PM2.5 в последний час ряда, уровень US AQI, погода того же часа (температура °C, влажность %, ветер км/ч
+    и откуда дует, °) и время последних ежечасных запусков."""
     return cached(request, "status", build_status)
 
 
 def build_status() -> dict:
-    row = db.fetch_one("select time, pm2_5, pm10 from series order by time desc limit 1")
+    row = db.fetch_one("select time, pm2_5, pm10, temp, rh, wind, wind_dir from series order by time desc limit 1")
     if row is None:
         raise HTTPException(503, "ряд пуст")
-    last, pm2_5, pm10 = row
+    last, pm2_5, pm10, temp, rh, wind, wind_dir = row
     before = db.fetch_one("select pm2_5 from series where time = %s", (last - timedelta(hours=24),))
     run = db.fetch_one("select started_at, duration_ms, status, hours_added from runs order by id desc limit 1")
     model_run = db.fetch_one("select started_at, issued_at, duration_ms, status from model_runs "
@@ -102,6 +103,7 @@ def build_status() -> dict:
         "time": iso(last), "pm2_5": r1(pm2_5), "pm10": r1(pm10),
         "aqi": levels.aqi(pm2_5), "level": levels.level(pm2_5),
         "change_24h": None if before is None else r1(pm2_5 - before[0]),
+        "weather": {"temp": r1(temp), "rh": r1(rh), "wind": r1(wind), "wind_dir": r1(wind_dir)},
         "data_run": None if run is None else {
             "at": iso(run[0]), "duration_ms": run[1], "status": run[2], "hours_added": run[3]},
         "model_run": None if model_run is None else {
