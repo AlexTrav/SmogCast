@@ -80,7 +80,7 @@ const stack = [
     <p class="animate-rise mt-5 max-w-3xl text-lg leading-relaxed text-muted" style="animation-delay: 120ms">{{ t('about.intro') }}</p>
 
     <dl class="mt-10 grid grid-cols-2 gap-4 lg:grid-cols-4">
-      <div v-for="(f, i) in facts" :key="f.label" v-reveal="i" class="card p-5">
+      <div v-for="(f, i) in facts" :key="f.label" v-reveal="i" class="card lift p-5">
         <dd class="num text-4xl font-bold text-primary">{{ f.value }}</dd>
         <dt class="mt-1 text-sm text-muted">{{ f.label }}</dt>
       </div>
@@ -100,7 +100,7 @@ const stack = [
     <section class="mt-20 rounded-3xl bg-surface-2/70 p-6 sm:p-10">
       <h2 v-reveal class="text-3xl font-bold tracking-tight text-ink">{{ t('about.modelsTitle') }}</h2>
       <div class="mt-8 grid gap-5 md:grid-cols-2">
-        <div v-for="(m, i) in models" :key="m.title" v-reveal="i" class="card p-6">
+        <div v-for="(m, i) in models" :key="m.title" v-reveal="i" class="card lift p-6">
           <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-on-primary">
             <component :is="m.icon" class="h-5 w-5" aria-hidden="true" />
           </span>
@@ -125,7 +125,7 @@ const stack = [
           <span class="num text-right text-ink">{{ formatNumber(b.mae, lang, 2) }}</span>
         </li>
       </ul>
-      <div v-else class="h-72 animate-pulse rounded-2xl bg-surface-2" />
+      <div v-else class="h-72 skeleton rounded-2xl bg-surface-2" />
       <RouterLink to="/models" class="btn-ghost mt-6">
         <Shuffle class="h-4 w-4" aria-hidden="true" />{{ t('about.moreModels') }}
       </RouterLink>

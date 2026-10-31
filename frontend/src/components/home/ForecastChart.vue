@@ -33,6 +33,7 @@ const HOUR = 3_600_000
 // на пояс, и деления приходятся на 00, 06, 12, 18 (на сутках – каждые 3 ч) по местному времени
 const OFFSET = 5 * HOUR
 const PAST = 24 // часов факта перед прогнозом
+const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 function css(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
@@ -106,7 +107,10 @@ const option = computed(() => {
   const leadColor = css(MODEL_VAR[lead.model] ?? '--series-1')
 
   return {
-    animationDuration: 900,
+    // первая прорисовка – линии «рисуются» слева направо; смена горизонта и моделей перетекает плавно
+    animation: !still,
+    animationDuration: 1100,
+    animationEasing: 'cubicOut' as const,
     animationDurationUpdate: 600,
     grid: { left: 8, right: 16, top: 24, bottom: 8, containLabel: true },
     tooltip: {

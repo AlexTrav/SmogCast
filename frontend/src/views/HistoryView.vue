@@ -58,7 +58,7 @@ function selectDay(day: string) {
 
     <section class="mt-10">
       <TimeMachine v-if="hours?.start" v-model="selected" :start="hours.start" :values="pm" :episode="episode" />
-      <div v-else class="h-80 animate-pulse rounded-3xl bg-surface-2" />
+      <div v-else class="h-80 skeleton rounded-3xl bg-surface-2" />
     </section>
 
     <section v-reveal class="card mt-8 p-5 sm:p-7">
@@ -71,7 +71,7 @@ function selectDay(day: string) {
       </ul>
       <div class="mt-4">
         <CalendarHeatmap v-if="days?.start" :start="days.start" :means="means" @select="selectDay" />
-        <div v-else class="h-[600px] animate-pulse rounded-2xl bg-surface-2" />
+        <div v-else class="h-[600px] skeleton rounded-2xl bg-surface-2" />
       </div>
     </section>
 
@@ -80,7 +80,7 @@ function selectDay(day: string) {
       <p class="mt-1 text-sm text-muted">{{ t('history.seriesText') }}</p>
       <div class="mt-4">
         <SeriesChart v-if="hours?.start" :start="hours.start" :values="pm" :selected="selected" @select="(i) => (selected = i)" />
-        <div v-else class="h-96 animate-pulse rounded-2xl bg-surface-2" />
+        <div v-else class="h-96 skeleton rounded-2xl bg-surface-2" />
       </div>
       <p class="mt-4 flex gap-2 text-sm text-faint">
         <Info class="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />

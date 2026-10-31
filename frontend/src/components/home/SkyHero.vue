@@ -112,7 +112,7 @@ const windArrow = computed(() => (props.windDir == null ? 0 : (props.windDir + 1
 
 <template>
   <section class="relative isolate flex min-h-[860px] items-start overflow-hidden sm:min-h-[720px]">
-    <SkyScene :pm="pm" :level="status?.level ?? 'good'" :phase="phase" :wind="wind" :wind-dir="windDir" />
+    <SkyScene parallax :pm="pm" :level="status?.level ?? 'good'" :phase="phase" :wind="wind" :wind-dir="windDir" />
 
     <div class="relative mx-auto grid w-full max-w-7xl gap-10 px-4 pt-28 pb-56 text-white sm:px-6 sm:pt-32 lg:grid-cols-[1fr_20rem]">
       <div>
@@ -164,6 +164,7 @@ const windArrow = computed(() => (props.windDir == null ? 0 : (props.windDir + 1
               <template v-else>{{ t('hero.nextUpdate', { time: countdown(next.getTime() - now.getTime()) }) }}</template>
             </p>
             <button
+              v-ripple
               class="inline-flex items-center gap-2 rounded-full bg-black/20 px-4 py-2 text-sm font-medium ring-1 ring-white/25 backdrop-blur-md transition-colors hover:bg-black/30"
               @click="share"
             >
@@ -171,6 +172,7 @@ const windArrow = computed(() => (props.windDir == null ? 0 : (props.windDir + 1
             </button>
             <button
               v-if="forecast"
+              v-ripple
               class="inline-flex items-center gap-2 rounded-full bg-black/20 px-4 py-2 text-sm font-medium ring-1 ring-white/25 backdrop-blur-md transition-colors hover:bg-black/30"
               :aria-pressed="playing"
               @click="playing ? pause() : play()"
@@ -203,9 +205,9 @@ const windArrow = computed(() => (props.windDir == null ? 0 : (props.windDir + 1
 
         <!-- заготовка, пока API просыпается -->
         <div v-else class="mt-10 space-y-4" aria-hidden="true">
-          <div class="h-4 w-32 animate-pulse rounded-full bg-white/20" />
-          <div class="h-36 w-80 max-w-full animate-pulse rounded-3xl bg-white/15" />
-          <div class="h-8 w-64 animate-pulse rounded-full bg-white/20" />
+          <div class="h-4 w-32 skeleton rounded-full bg-white/20" />
+          <div class="h-36 w-80 max-w-full skeleton rounded-3xl bg-white/15" />
+          <div class="h-8 w-64 skeleton rounded-full bg-white/20" />
         </div>
       </div>
 

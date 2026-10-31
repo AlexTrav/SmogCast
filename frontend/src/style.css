@@ -178,7 +178,86 @@ body {
   transform: none;
 }
 
+/* волна от нажатия (директива v-ripple) */
+.ripple-host {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.ripple {
+  position: absolute;
+  z-index: -1;
+  border-radius: 9999px;
+  background: currentColor;
+  opacity: 0.16;
+  transform: scale(0);
+  pointer-events: none;
+  animation: ripple 0.6s ease-out forwards;
+}
+@keyframes ripple {
+  to {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+/* заготовки, пока данные грузятся: по серому блоку пробегает блик */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.5), transparent);
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+.dark .skeleton::after {
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.07), transparent);
+}
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* карточка чуть приподнимается при наведении; у карточек с v-reveal свой переход – подъём должен быть быстрым */
+.lift,
+.lift[data-reveal] {
+  transition:
+    opacity 0.7s ease,
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+}
+.lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 32px -16px rgb(12 26 46 / 0.28);
+}
+
+/* «вдох» чистого неба: мягкое свечение у горизонта медленно нарастает и гаснет */
+.sky-breathe {
+  animation: breathe 8s ease-in-out infinite;
+}
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .lift:hover {
+    transform: none;
+  }
+  .skeleton::after,
+  .sky-breathe {
+    display: none;
+  }
   [data-reveal] {
     opacity: 1;
     transform: none;

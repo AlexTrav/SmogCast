@@ -76,13 +76,13 @@ const windDir = computed(() => weather.value?.values.wind_dir?.[0] ?? null)
           <p class="mt-1 max-w-2xl text-sm text-muted">{{ t('outlook.subtitle') }}</p>
           <DayCards v-if="days.length" class="mt-5" data-tour="days" :days="days" :selected="day" @select="day = $event" />
           <div v-else class="mt-5 grid gap-3 sm:grid-cols-3">
-            <div v-for="i in 3" :key="i" class="h-44 animate-pulse rounded-2xl bg-surface-2" />
+            <div v-for="i in 3" :key="i" class="h-44 skeleton rounded-2xl bg-surface-2" />
           </div>
           <h3 class="mt-6 text-sm font-semibold text-muted">{{ t('outlook.hourly') }}</h3>
           <HourlyStrip v-if="points.length" class="mt-2" :points="points" :now="current" :day="day" />
-          <div v-else class="mt-2 h-32 animate-pulse rounded-2xl bg-surface-2" />
+          <div v-else class="mt-2 h-32 skeleton rounded-2xl bg-surface-2" />
 
-          <button class="btn-ghost mt-5" data-tour="more" :aria-expanded="expanded" aria-controls="details" @click="expanded = !expanded">
+          <button v-ripple class="btn-ghost mt-5" data-tour="more" :aria-expanded="expanded" aria-controls="details" @click="expanded = !expanded">
             <ChartSpline class="h-4 w-4" aria-hidden="true" />
             {{ expanded ? t('outlook.less') : t('outlook.more') }}
             <ChevronDown class="h-4 w-4 transition-transform" :class="expanded ? 'rotate-180' : ''" aria-hidden="true" />
@@ -99,7 +99,7 @@ const windDir = computed(() => weather.value?.values.wind_dir?.[0] ?? null)
           <p class="mt-1 max-w-3xl text-sm text-muted">{{ t('explain.subtitle') }}</p>
           <div class="mt-6">
             <ExplainCard v-if="explain" :explain="explain" />
-            <div v-else class="h-40 animate-pulse rounded-2xl bg-surface-2" />
+            <div v-else class="h-40 skeleton rounded-2xl bg-surface-2" />
           </div>
         </section>
       </div>
@@ -122,7 +122,7 @@ const windDir = computed(() => weather.value?.values.wind_dir?.[0] ?? null)
           </label>
           <div class="mt-4">
             <BestTimes v-if="days.length" :days="days" />
-            <div v-else class="h-40 animate-pulse rounded-2xl bg-surface-2" />
+            <div v-else class="h-40 skeleton rounded-2xl bg-surface-2" />
           </div>
         </section>
         <section class="card p-5 sm:p-6">
@@ -130,7 +130,7 @@ const windDir = computed(() => weather.value?.values.wind_dir?.[0] ?? null)
           <p class="mt-1 text-sm text-muted">{{ t('factors.subtitle') }}</p>
           <div class="mt-4">
             <FactorList v-if="weather" :factors="weather.factors" />
-            <div v-else class="h-64 animate-pulse rounded-2xl bg-surface-2" />
+            <div v-else class="h-64 skeleton rounded-2xl bg-surface-2" />
           </div>
         </section>
         <section class="card p-5 sm:p-6">

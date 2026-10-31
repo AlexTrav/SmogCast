@@ -21,6 +21,7 @@ const FEW = 4
   <ul class="grid gap-3 sm:grid-cols-3">
     <li v-for="d in days" :key="d.offset">
       <button
+        v-ripple
         class="day-card group relative flex h-full w-full flex-col overflow-hidden rounded-2xl border bg-surface p-4 text-left transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:shadow-lg"
         :class="selected === d.offset ? 'border-primary shadow-md' : 'border-line hover:border-faint'"
         :aria-pressed="selected === d.offset"

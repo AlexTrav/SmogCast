@@ -72,7 +72,7 @@ const diff = computed(() => {
           <p class="text-sm text-muted">{{ t('recompute.text') }}</p>
         </div>
       </div>
-      <button class="btn-ghost disabled:cursor-not-allowed disabled:opacity-60" :disabled="running || wait > 0" @click="run">
+      <button v-ripple class="btn-ghost disabled:cursor-not-allowed disabled:opacity-60" :disabled="running || wait > 0" @click="run">
         <RefreshCw class="h-4 w-4" :class="running ? 'animate-spin' : ''" aria-hidden="true" />
         <span class="num">{{ running ? t('recompute.running') : wait > 0 ? t('recompute.wait', { s: wait }) : t('recompute.button') }}</span>
       </button>

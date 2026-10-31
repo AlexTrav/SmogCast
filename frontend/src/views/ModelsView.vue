@@ -72,7 +72,7 @@ const tiles = computed(() => {
 
     <dl class="mt-10 grid grid-cols-2 gap-4 lg:grid-cols-4">
       <template v-if="tiles.length">
-        <div v-for="(tile, i) in tiles" :key="tile.label" v-reveal="i" class="card p-5">
+        <div v-for="(tile, i) in tiles" :key="tile.label" v-reveal="i" class="card lift p-5">
           <dt class="flex items-center gap-2 text-sm font-medium text-muted">
             <component :is="tile.icon" class="h-4 w-4 text-primary" aria-hidden="true" />{{ tile.label }}
           </dt>
@@ -80,7 +80,7 @@ const tiles = computed(() => {
           <dd class="mt-1 text-xs text-faint">{{ tile.note }}</dd>
         </div>
       </template>
-      <div v-for="i in 4" v-else :key="i" class="card h-32 animate-pulse" />
+      <div v-for="i in 4" v-else :key="i" class="card h-32 skeleton" />
     </dl>
 
     <!-- живой журнал -->
@@ -112,7 +112,7 @@ const tiles = computed(() => {
       <p class="mt-1 max-w-3xl text-sm text-muted">{{ t('modelsPage.horizonText') }}</p>
       <div class="mt-4">
         <HorizonChart v-if="report" :mae-by-horizon="report.test.mae_by_horizon" />
-        <div v-else class="h-96 animate-pulse rounded-2xl bg-surface-2" />
+        <div v-else class="h-96 skeleton rounded-2xl bg-surface-2" />
       </div>
     </section>
 
@@ -121,7 +121,7 @@ const tiles = computed(() => {
       <p class="mt-1 max-w-3xl text-sm text-muted">{{ t('modelsPage.rankingText') }}</p>
       <div class="mt-4">
         <RankingTable v-if="report" :report="report.test" />
-        <div v-else class="h-96 animate-pulse rounded-2xl bg-surface-2" />
+        <div v-else class="h-96 skeleton rounded-2xl bg-surface-2" />
       </div>
     </section>
 

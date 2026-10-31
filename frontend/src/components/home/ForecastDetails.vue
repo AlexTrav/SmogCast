@@ -96,6 +96,7 @@ const extremes = computed(() => {
       <div class="inline-flex rounded-full border border-line p-0.5" role="radiogroup" :aria-label="t('forecast.horizon')">
         <button
           v-for="h in HORIZONS"
+          v-ripple
           :key="h"
           role="radio"
           :aria-checked="hours === h"
@@ -124,6 +125,7 @@ const extremes = computed(() => {
     <div class="mt-2 flex flex-wrap gap-2" role="group" :aria-label="t('forecast.compare')">
       <button
         v-for="key in models"
+        v-ripple
         :key="key"
         role="checkbox"
         :aria-checked="selected.includes(key)"
@@ -162,7 +164,7 @@ const extremes = computed(() => {
     </ul>
     <div class="mt-3">
       <ForecastChart v-if="actual && shown.length" :forecasts="shown" :actual="actual" :hours="hours" :band="band" :cams="cams" />
-      <div v-else class="h-80 animate-pulse rounded-2xl bg-surface-2 sm:h-96" />
+      <div v-else class="h-80 skeleton rounded-2xl bg-surface-2 sm:h-96" />
     </div>
 
     <!-- те же значения таблицей: для экранного диктора и для тех, кому удобнее цифры -->

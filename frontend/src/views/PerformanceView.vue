@@ -67,7 +67,7 @@ const uptime = computed(() => {
           <dd class="mt-1 text-xs text-faint">{{ tile.note }}</dd>
         </div>
       </template>
-      <div v-for="i in 6" v-else :key="i" class="card h-32 animate-pulse" />
+      <div v-for="i in 6" v-else :key="i" class="card h-32 skeleton" />
     </dl>
 
     <section v-reveal class="card mt-8 p-5 sm:p-7">
@@ -75,7 +75,7 @@ const uptime = computed(() => {
       <p class="mt-1 max-w-3xl text-sm text-muted">{{ t('perf.runsText') }}</p>
       <div class="mt-4">
         <RunsChart v-if="perf" :perf="perf" />
-        <div v-else class="h-80 animate-pulse rounded-2xl bg-surface-2" />
+        <div v-else class="h-80 skeleton rounded-2xl bg-surface-2" />
       </div>
     </section>
 
