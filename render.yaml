@@ -3,7 +3,7 @@
 # SmogCast/.env.api); Render спрашивает её один раз при создании сервиса
 services:
   - type: web
-    name: smogcast-api
+    name: smogcast-backend
     runtime: docker
     plan: free
     region: frankfurt
