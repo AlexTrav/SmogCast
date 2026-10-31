@@ -8,20 +8,19 @@ import DayCards from '../components/home/DayCards.vue'
 import ExplainCard from '../components/home/ExplainCard.vue'
 import FactorList from '../components/home/FactorList.vue'
 import ForecastDetails from '../components/home/ForecastDetails.vue'
+import HealthTips from '../components/home/HealthTips.vue'
 import HourlyStrip from '../components/home/HourlyStrip.vue'
 import LevelScale from '../components/home/LevelScale.vue'
 import SkyHero from '../components/home/SkyHero.vue'
 import TourGuide from '../components/home/TourGuide.vue'
 import TermHint from '../components/TermHint.vue'
 import { useLive } from '../composables/useLive'
-import { useSensitive } from '../composables/useSensitive'
 import type { Explain, Forecast, Weather } from '../types'
 import { localDay } from '../utils/format'
 import { dayOutlook, hoursOf } from '../utils/outlook'
 
 const { t } = useI18n()
 const { status } = useLive()
-const { sensitive } = useSensitive()
 const tour = ref<InstanceType<typeof TourGuide> | null>(null)
 
 // прогноз смеси по умолчанию: по нему карточки дней, лента и «когда выйти»; другие модели – в подробностях
@@ -118,20 +117,14 @@ const windDir = computed(() => weather.value?.values.wind_dir?.[0] ?? null)
 
       <div class="min-w-0 space-y-6">
         <section class="card p-5 sm:p-6" data-tour="best">
+          <h2 class="flex items-center gap-2 text-lg font-bold tracking-tight text-ink">{{ t('tips.title') }}</h2>
+          <p class="mt-1 text-sm text-muted">{{ t('tips.subtitle') }}</p>
+          <HealthTips v-if="status" class="mt-4" :level="status.level" />
+          <div v-else class="skeleton mt-4 h-48 rounded-2xl bg-surface-2" />
+        </section>
+        <section class="card p-5 sm:p-6">
           <h2 class="text-lg font-bold tracking-tight text-ink">{{ t('outlook.windowsTitle') }}</h2>
           <p class="mt-1 text-sm text-muted">{{ t('outlook.windowsSubtitle') }}</p>
-          <!-- переключатель-тумблер: настоящий чекбокс (role="switch") спрятан, рисуется его «дорожка» -->
-          <label class="mt-4 flex cursor-pointer items-center justify-between gap-3 rounded-xl bg-surface-2 px-3.5 py-2.5">
-            <span>
-              <span class="block text-sm font-medium text-ink">{{ t('sensitive.label') }}</span>
-              <span class="block text-xs text-muted">{{ t('sensitive.hint') }}</span>
-            </span>
-            <input v-model="sensitive" type="checkbox" role="switch" class="peer sr-only" />
-            <span
-              class="relative h-6 w-11 shrink-0 rounded-full bg-line transition-colors peer-checked:bg-primary peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:after:translate-x-5"
-              aria-hidden="true"
-            />
-          </label>
           <div class="mt-4">
             <BestTimes v-if="days.length" :days="days" />
             <div v-else class="h-40 skeleton rounded-2xl bg-surface-2" />
