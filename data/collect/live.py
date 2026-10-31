@@ -9,7 +9,9 @@ from . import db
 from .api import fetch_hourly
 from .config import (
     AIR_URL,
+    DB_LIMIT_MB,
     FORECAST_DAYS,
+    KEEP_DAYS,
     OVERLAP_DAYS,
     START_DATE,
     WEATHER_FORECAST_MODEL,
@@ -40,12 +42,12 @@ def fetch_forecasts(issued_at: pd.Timestamp) -> tuple[pd.DataFrame, pd.DataFrame
 
 
 # ежечасный запуск: этапы независимы – если не обновился ряд, снимки прогнозов всё равно сохраняются
-# (их нельзя восстановить задним числом); итог каждого запуска пишется в runs
-def hourly(conn: psycopg.Connection, now: pd.Timestamp | None = None) -> dict:
+# (их нельзя восстановить задним числом); затем очистка по размеру базы; итог каждого запуска пишется в runs
+def hourly(conn: psycopg.Connection, now: pd.Timestamp | None = None, limit_mb: float = DB_LIMIT_MB) -> dict:
     now = now if now is not None else pd.Timestamp.now(tz="UTC")
     started = clock.perf_counter()
     issued_at = now.floor("h")
-    result = {"hours_added": None, "cams_rows": None, "weather_rows": None}
+    result = {"hours_added": None, "cams_rows": None, "weather_rows": None, "cleaned_rows": None, "db_mb": None}
     errors = []
     db.init_schema(conn)
 
@@ -64,6 +66,13 @@ def hourly(conn: psycopg.Connection, now: pd.Timestamp | None = None) -> dict:
         result["weather_rows"] = db.save_forecast(conn, "weather_forecasts", issued_at, weather)
     except Exception as error:  # noqa: BLE001
         errors.append(f"прогнозы: {error}")
+
+    try:
+        conn.rollback()
+        result["cleaned_rows"] = db.cleanup(conn, now, limit_mb, KEEP_DAYS)
+        result["db_mb"] = round(db.db_size_mb(conn), 2)
+    except Exception as error:  # noqa: BLE001
+        errors.append(f"очистка: {error}")
 
     try:
         conn.rollback()  # после ошибки этапа транзакция могла остаться прерванной

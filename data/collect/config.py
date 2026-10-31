@@ -1,3 +1,4 @@
+import os
 from datetime import date
 from pathlib import Path
 
@@ -19,6 +20,12 @@ WEATHER_URL = "https://archive-api.open-meteo.com/v1/archive"
 WEATHER_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 WEATHER_FORECAST_MODEL = "ecmwf_ifs"
 FORECAST_DAYS = 5  # глубина снимков прогнозов CAMS и погоды
+
+# порог размера базы (МБ): выше него ежечасный запуск удаляет самые старые снимки прогнозов, пока размер
+# не опустится до 80 % порога; снимки моложе KEEP_DAYS суток не удаляются никогда.
+# 50 МБ при бесплатном лимите Neon 0,5 ГБ – около 2–3 месяцев снимков; порог можно поднять переменной окружения
+DB_LIMIT_MB = float(os.environ.get("DB_LIMIT_MB") or 50)
+KEEP_DAYS = 14
 
 # переменная API -> короткое имя колонки в CSV
 AIR_VARS = {

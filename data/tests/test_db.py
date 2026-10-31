@@ -87,14 +87,53 @@ def test_hourly_adds_hours_and_snapshots(conn, monkeypatch):
     assert first["cams_rows"] == first["weather_rows"] == 120
     assert first["series_last"] == (START + timedelta(days=3, hours=5)).to_pydatetime()
 
+    assert first["cleaned_rows"] == 0 and first["db_mb"] > 0
+
     # повтор в тот же час (ручной запуск или задержка cron) ничего не дублирует
     again = live.hourly(conn, now + timedelta(minutes=10))
-    assert again["hours_added"] == 0
+    assert again["hours_added"] == 0 and again["cams_rows"] == 0
     assert db.counts(conn) == {"series": 3 * 24 + 6, "cams_forecasts": 120, "weather_forecasts": 120, "runs": 2}
 
     later = live.hourly(conn, now + timedelta(hours=2))
     assert later["hours_added"] == 2
     assert db.counts(conn)["cams_forecasts"] == 240  # новый снимок – новый час выпуска
+
+
+# прогноз одного прогона модели: часы не зависят от момента снимка, сдвигается только начало
+def run_forecast(issued_at, run_start, value=30.0):
+    times = pd.date_range(run_start, periods=96, freq="h")
+    frame = pd.DataFrame({"time": times, "pm2_5": value, "pm10": 45.0})
+    return frame[frame["time"] > issued_at]
+
+
+def test_unchanged_forecast_is_not_saved_again(conn):
+    run = START + timedelta(hours=12)
+    assert db.save_forecast(conn, "cams_forecasts", START + timedelta(hours=13), run_forecast(START, run)) == 96
+    # через час тот же прогон: часы – подмножество прошлого снимка, значения те же
+    shifted = run_forecast(START + timedelta(hours=14), run)
+    assert db.save_forecast(conn, "cams_forecasts", START + timedelta(hours=14), shifted) == 0
+    # новый прогон: значения изменились
+    fresh = run_forecast(START + timedelta(hours=15), run, value=31.0)
+    assert db.save_forecast(conn, "cams_forecasts", START + timedelta(hours=15), fresh) == len(fresh)
+    latest = db.latest_forecast(conn, "cams_forecasts")
+    assert (latest["pm2_5"] == 31.0).all() and len(latest) == len(fresh)
+
+
+def test_cleanup_deletes_only_old_snapshots_over_limit(conn):
+    now = START + timedelta(days=60)
+    db.upsert_series(conn, make_frame(48))
+    for days_ago in (40, 30, 1):
+        issued = now - timedelta(days=days_ago)
+        for table, frame in zip(db.SNAPSHOT_TABLES, fake_forecasts(issued)):
+            frame = frame.copy()
+            frame.iloc[:, 1:] = float(days_ago)  # разные значения – иначе снимок не сохранится
+            db.save_forecast(conn, table, issued, frame)
+    assert db.cleanup(conn, now, limit_mb=10_000, keep_days=14) == 0  # база меньше порога – ничего не трогаем
+
+    # порог заведомо ниже размера пустой базы: удаляется всё, кроме снимков моложе 14 дней
+    assert db.cleanup(conn, now, limit_mb=1, keep_days=14) == 2 * 2 * 120
+    assert db.counts(conn) == {"series": 48, "cams_forecasts": 120, "weather_forecasts": 120, "runs": 0}
+    assert db.cleanup(conn, now, limit_mb=1, keep_days=14) == 0
 
 
 def test_hourly_saves_forecasts_when_series_fails(conn, monkeypatch):
