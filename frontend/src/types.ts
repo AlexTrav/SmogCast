@@ -154,11 +154,13 @@ export interface Weather {
   factors: Factor[]
 }
 
-// кнопка «Пересчитать сейчас»: лёгкие модели заново от того же часа ряда; ms – время модели,
+// кнопка «Пересчитать сейчас»: лёгкие модели заново от того же часа ряда; ms – время расчёта модели,
+// load_ms – её загрузки (чтение ONNX),
 // diff – наибольшее отличие от ежечасного расчёта (мкг/м³), cached – этот час уже пересчитывали
 export interface RecomputeModel {
   model: string
   ms: number | null
+  load_ms: number | null
   diff: number | null
   error: string | null
   pred: number[] | null

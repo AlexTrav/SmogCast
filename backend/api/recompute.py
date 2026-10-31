@@ -48,7 +48,8 @@ def _throttle(address: str) -> None:
 
 @router.post("/api/recompute")
 def recompute(request: Request) -> dict:
-    """Пересчитать лёгкие модели от последнего часа ряда: время каждой модели в мс и прогноз на 72 ч;
+    """Пересчитать лёгкие модели от последнего часа ряда: время расчёта каждой модели (ms) и её загрузки
+    (load_ms) в мс, прогноз на 72 ч;
     diff – наибольшее расхождение с ежечасным расчётом того же часа (мкг/м³). Не чаще раза в 30 с с адреса
     (иначе 429 и Retry-After); повторное нажатие в тот же час получает готовый ответ (cached: true)."""
     global _result
@@ -81,23 +82,28 @@ def compute() -> dict:
             stored.setdefault(model, []).append(pred)
     series = np.log(frame["pm2_5"])
     predictions, models = {}, []
+    # загрузка модели (чтение ONNX, запуск onnxruntime) – отдельно от самого расчёта: иначе первая LSTM
+    # «платила» бы за запуск библиотеки и казалась бы в десятки раз медленнее второй
     for key, factory in light.factories(frame, provider).items():
         started = time.perf_counter()
+        load_ms, error = None, None
         try:
             model = factory()
+            load_ms = round((time.perf_counter() - started) * 1000, 1)
+            started = time.perf_counter()
             model.fit(series)
             predictions[key] = np.exp(np.asarray(model.predict(series, light.HORIZON), dtype=float))
-            error = None
         except Exception as failure:  # noqa: BLE001 – сбой одной модели (нет прогноза погоды) не мешает остальным
             error = str(failure)[:300]
-        models.append({"model": key, "ms": round((time.perf_counter() - started) * 1000, 1), "error": error})
+        models.append({"model": key, "ms": round((time.perf_counter() - started) * 1000, 1), "load_ms": load_ms,
+                       "error": error})
     # смесь по умолчанию (ключ – части через «+»): средняя в логарифмах; части, которые здесь не считаются,
     # – из ежечасного расчёта того же часа
     parts = DEFAULT_MODEL.split("+")
     sources = [predictions.get(p, stored.get(p)) for p in parts]
     if len(parts) > 1 and all(s is not None and len(s) == light.HORIZON for s in sources):
         predictions[DEFAULT_MODEL] = np.exp(np.mean([np.log(np.asarray(s, dtype=float)) for s in sources], axis=0))
-        models.append({"model": DEFAULT_MODEL, "ms": None, "error": None})
+        models.append({"model": DEFAULT_MODEL, "ms": None, "load_ms": None, "error": None})
     for entry in models:
         pred, before = predictions.get(entry["model"]), stored.get(entry["model"])
         entry["pred"] = None if pred is None else [r1(v) for v in pred]

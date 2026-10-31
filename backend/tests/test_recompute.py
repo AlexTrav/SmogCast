@@ -30,7 +30,7 @@ def test_recompute_light_models_from_last_hour(filled, client):
     assert body["issued_at"] == common.iso(LAST) and body["cached"] is False
     assert [m["model"] for m in body["models"]] == [*LIGHT, common.DEFAULT_MODEL]
     assert all(m["error"] is None and len(m["pred"]) == 72 for m in body["models"])
-    assert all(m["ms"] >= 0 for m in body["models"][:-1])
+    assert all(m["ms"] >= 0 and m["load_ms"] >= 0 for m in body["models"][:-1])
     models = {m["model"]: m for m in body["models"]}
     # ряд повторяется каждые сутки (PM2.5 = 10 + час % 24): сезонная и профиль дают тот же час прошлых суток
     expected = [10.0 + (239 + h) % 24 for h in range(1, 73)]

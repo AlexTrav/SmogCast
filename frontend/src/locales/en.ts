@@ -72,7 +72,7 @@ const messages: typeof ru = {
     running: 'Computing…',
     wait: '{s} s left',
     done: 'Models computed in {s} s',
-    total: 'including the database read – {s} s',
+    total: 'including model loading and the database read – {s} s',
     same: 'Matches the hourly run',
     diff: 'Differs from the hourly run by up to {value} µg/m³',
     cached: 'This hour was already recomputed at {time} – showing the same result',
