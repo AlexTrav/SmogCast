@@ -8,7 +8,9 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from style import AQUA, BLUE, COMMA, INK2, MAGENTA, ORANGE, YELLOW, save
+from matplotlib.ticker import FuncFormatter
+
+from style import AQUA, BLUE, COMMA, INK, INK2, MAGENTA, ORANGE, SEQUENTIAL, YELLOW, save
 
 REPORTS = Path(__file__).resolve().parent / "reports"
 COLORS = {"persistence": ORANGE, "seasonal_24": BLUE, "seasonal_168": YELLOW, "profile_7d": AQUA}
@@ -173,6 +175,77 @@ def fig_all_models(arima: dict, prophet: dict, lstm_report: dict, baseline: dict
     save(fig, 22, "Ошибка всех моделей по горизонту прогноза на валидации")
 
 
+FINAL_ORDER = ("persistence", "seasonal_24", "profile_7d", "prophet", "lstm", "lstm_weather", "arima")
+
+
+# итог на тесте: средний промах по суткам горизонта для базовых моделей, трёх моделей и модели по умолчанию
+def fig_final(report: dict) -> None:
+    default = report["meta"]["default"]
+    keys = [k for k in FINAL_ORDER if k != default] + [default]
+    buckets = ["1–24", "25–48", "49–72"]
+    colors = [AQUA, BLUE, ORANGE]
+    y = np.arange(len(keys))
+    fig, ax = plt.subplots(figsize=(10, 6))
+    for j, (bucket, color) in enumerate(zip(buckets, colors)):
+        values = [report["models"][k]["buckets"][bucket]["mae"] for k in keys]
+        ax.barh(y + (j - 1) * 0.26, values, height=0.24, color=color, label=f"{bucket} ч")
+        for yi, v in zip(y + (j - 1) * 0.26, values):
+            ax.text(v + 0.08, yi, f"{v:.2f}".replace(".", ","), va="center", fontsize=9)
+    labels = [report["models"][k]["name"] + (" (по умолчанию)" if k == default else "") for k in keys]
+    ax.set_yticks(y, labels)
+    ax.set_xlabel("MAE на тестовом году, мкг/м³")
+    ax.xaxis.set_major_formatter(COMMA)
+    ax.grid(axis="y", visible=False)
+    ax.legend(loc="lower right", title="горизонт")
+    save(fig, 23, "Итоговая ошибка моделей на отложенном тестовом году")
+
+
+def fig_final_example(report: dict) -> None:
+    ex = report["example"]
+    past = np.arange(-len(ex["history"]) + 1, 1)
+    ahead = np.arange(1, len(ex["pred"]) + 1)
+    fig, ax = plt.subplots(figsize=(10, 4.6))
+    for level, limit in zip(("хорошо", "умеренно", "вредно для чувств.", "вредно"), (9.0, 35.4, 55.4, 125.4)):
+        ax.axhline(limit, color=INK2, lw=0.8, ls=(0, (1, 3)))
+        ax.text(72.5, limit, f" {limit:g}".replace(".", ","), va="center", fontsize=9, color=INK2)
+    ax.plot(past, ex["history"], color=INK2, lw=1.4, label="факт до прогноза")
+    ax.fill_between(ahead, ex["lower95"], ex["upper95"], color=BLUE, alpha=0.10, lw=0, label="интервал 95 %")
+    ax.fill_between(ahead, ex["lower80"], ex["upper80"], color=BLUE, alpha=0.18, lw=0, label="интервал 80 %")
+    ax.plot(ahead, ex["actual"], color=INK2, lw=1.4, ls=(0, (4, 3)), label="факт")
+    ax.plot(ahead, ex["pred"], color=BLUE, lw=2, label="прогноз")
+    ax.axvline(0, color=INK2, lw=1)
+    ax.set_xticks(range(-48, 73, 12))
+    ax.set_xlim(-48, 72)
+    ax.set_ylim(0, None)
+    ax.set_xlabel("часы от момента прогноза (15.01.2026, 18:00)")
+    ax.set_ylabel("PM2.5, мкг/м³")
+    ax.set_title(ex["name"], loc="left", fontsize=12)
+    ax.legend(loc="upper left", fontsize=10, ncols=2)
+    save(fig, 24, "Пример прогноза модели по умолчанию на тесте 15.01.2026 18 00")
+
+
+def fig_confusion(report: dict) -> None:
+    matrix = np.asarray(report["confusion_24h"], dtype=float)
+    used = [i for i in range(len(matrix)) if matrix[i].sum() or matrix[:, i].sum()]
+    matrix = matrix[np.ix_(used, used)]
+    shares = matrix / matrix.sum(axis=1, keepdims=True)
+    names = [report["meta"]["aqi"]["levels"][i] for i in used]
+    fig, ax = plt.subplots(figsize=(7.5, 6))
+    image = ax.imshow(shares, cmap=SEQUENTIAL, vmin=0, vmax=1)
+    for i in range(len(used)):
+        for j in range(len(used)):
+            ax.text(j, i, f"{shares[i, j] * 100:.0f} %\n({int(matrix[i, j])})", ha="center", va="center",
+                    fontsize=9.5, color="white" if shares[i, j] > 0.5 else INK)
+    ax.set_xticks(range(len(used)), names, rotation=20, ha="right")
+    ax.set_yticks(range(len(used)), names)
+    ax.set_xlabel("предсказанный уровень (за 24 ч)")
+    ax.set_ylabel("фактический уровень")
+    ax.grid(False)
+    bar = fig.colorbar(image, ax=ax, pad=0.02, format=FuncFormatter(lambda v, _: f"{v * 100:.0f} %"))
+    bar.outline.set_visible(False)
+    save(fig, 25, "Угадывание уровня воздуха US AQI за 24 часа на тесте")
+
+
 def main() -> None:
     baseline = load("baselines/validation.json")
     fig_baselines(baseline)
@@ -190,6 +263,11 @@ def main() -> None:
     lstm_report = load("lstm/validation.json")
     if lstm_report and arima and prophet:
         fig_all_models(arima, prophet, lstm_report, baseline)
+    final = load("final/test.json")
+    if final:
+        fig_final(final)
+        fig_final_example(final)
+        fig_confusion(final)
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-.PHONY: build baselines arima-orders arima prophet weather lstm figures test
+.PHONY: build baselines arima-orders arima prophet weather lstm select final figures test
 
 IMAGE := smogcast-model
 
@@ -41,6 +41,15 @@ weather: build
 # -> reports/lstm/validation.json
 lstm: build
 	$(RUN) python -W ignore lstm_eval.py
+
+# выбор модели по умолчанию (одна модель или смесь) на валидации – до теста (около 10 минут)
+# -> reports/final/selection.json
+select: build
+	$(RUN) python -W ignore final.py select
+
+# итог на отложенном тестовом годе – только после select (около 10 минут) -> reports/final/test.json
+final: build
+	$(RUN) python -W ignore final.py final
 
 # рисунки по сохранённым отчётам; шрифт Times New Roman – из Windows
 figures: build
