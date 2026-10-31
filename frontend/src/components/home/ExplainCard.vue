@@ -3,43 +3,53 @@ import { CalendarRange, Clock3, CloudSun, Layers, Gauge } from 'lucide-vue-next'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AppLocale, Explain } from '../../types'
-import { formatNumber } from '../../utils/format'
+import { formatHour, formatNumber } from '../../utils/format'
 import { modelColor } from '../../utils/models'
+import TermHint from '../TermHint.vue'
 
-// «почему такой прогноз»: уровень × сезон × суточный ход (части Prophet), влияние погоды на LSTM
-// и из каких моделей сложена смесь по умолчанию
+// «почему такой прогноз» словами: обычный фон, влияние сезона, суточный ход (части Prophet), влияние погоды
+// (LSTM с погодой против LSTM без неё) и из каких моделей сложена смесь; числа – мелко, с подсказкой «?»
 const props = defineProps<{ explain: Explain }>()
 const { t, locale } = useI18n()
 const lang = computed(() => locale.value as AppLocale)
 
-const factor = (v: number) => `×${formatNumber(v, lang.value, 2)}`
+const NEUTRAL = 0.05 // влияние меньше 5 % – «почти не влияет»
+const percent = (ratio: number) => formatNumber(Math.abs(ratio - 1) * 100, lang.value, 0)
+// час суток Prophet – по местному времени Алматы
 const hour = (h: number) => `${String(h).padStart(2, '0')}:00`
-const percent = (ratio: number) => {
-  const p = (ratio - 1) * 100
-  return `${p > 0 ? '+' : p < 0 ? '−' : '±'}${formatNumber(Math.abs(p), lang.value)} %`
-}
 
 const items = computed(() => {
-  const out: { icon: unknown; title: string; value: string; text: string }[] = []
+  const out: { icon: unknown; term: string; title: string; head: string; text: string }[] = []
   const p = props.explain.prophet
   if (p) {
-    out.push({ icon: Gauge, title: t('explain.level'), value: formatNumber(p.summary.level, lang.value), text: t('explain.levelText') })
+    const s = p.summary
     out.push({
-      icon: CalendarRange,
-      title: t('explain.season'),
-      value: factor(p.summary.yearly),
-      text: p.summary.yearly >= 1 ? t('explain.seasonUp') : t('explain.seasonDown'),
+      icon: Gauge, term: 'exLevel', title: t('explain.level'),
+      head: t('explain.levelHead', { value: formatNumber(s.level, lang.value, 0) }),
+      text: t('explain.levelText'),
     })
     out.push({
-      icon: Clock3,
-      title: t('explain.daily'),
-      value: `${factor(p.summary.daily_low.factor)}…${factor(p.summary.daily_high.factor)}`,
-      text: t('explain.dailyText', { high: hour(p.summary.daily_high.hour), low: hour(p.summary.daily_low.hour) }),
+      icon: CalendarRange, term: 'exSeason', title: t('explain.season'),
+      head: Math.abs(s.yearly - 1) < NEUTRAL
+        ? t('explain.seasonNone')
+        : t(s.yearly > 1 ? 'explain.seasonUp' : 'explain.seasonDown', { value: percent(s.yearly) }),
+      text: t('explain.seasonText'),
+    })
+    out.push({
+      icon: Clock3, term: 'exDaily', title: t('explain.daily'),
+      head: t('explain.dailyHead', { high: hour(s.daily_high.hour), low: hour(s.daily_low.hour) }),
+      text: t('explain.dailyText', { times: formatNumber(s.daily_high.factor / s.daily_low.factor, lang.value, 1) }),
     })
   }
   const w = props.explain.weather
   if (w) {
-    out.push({ icon: CloudSun, title: t('explain.weather'), value: percent(w.mean_24h), text: t('explain.weatherText', { value: percent(w.mean_24h) }) })
+    out.push({
+      icon: CloudSun, term: 'exWeather', title: t('explain.weather'),
+      head: Math.abs(w.mean_24h - 1) < 0.03
+        ? t('explain.weatherNone')
+        : t(w.mean_24h > 1 ? 'explain.weatherUp' : 'explain.weatherDown', { value: percent(w.mean_24h) }),
+      text: t('explain.weatherText'),
+    })
   }
   return out
 })
@@ -48,17 +58,19 @@ const items = computed(() => {
 const parts = computed(() =>
   Object.entries(props.explain.blend.parts).map(([key, values]) => ({ key, value: values[0], color: modelColor(key) })),
 )
+const firstHour = computed(() => formatHour(props.explain.start, lang.value))
 </script>
 
 <template>
   <div class="grid gap-6 lg:grid-cols-[1fr_18rem]">
     <ul class="grid gap-4 sm:grid-cols-2">
-      <li v-for="(item, i) in items" :key="item.title" v-reveal="i" class="rounded-2xl border border-line bg-surface-2/50 p-4">
+      <li v-for="(item, i) in items" :key="item.term" v-reveal="i" class="rounded-2xl border border-line bg-surface-2/50 p-4">
         <div class="flex items-center gap-2 text-sm font-semibold text-muted">
           <component :is="item.icon" class="h-4 w-4 text-primary" aria-hidden="true" />
           {{ item.title }}
+          <TermHint :term="item.term" class="ml-auto" />
         </div>
-        <p class="num mt-2 text-2xl font-semibold text-ink">{{ item.value }}</p>
+        <p class="mt-2 text-lg leading-snug font-semibold text-ink">{{ item.head }}</p>
         <p class="mt-1 text-sm text-muted">{{ item.text }}</p>
       </li>
     </ul>
@@ -66,20 +78,23 @@ const parts = computed(() =>
       <div class="flex items-center gap-2 text-sm font-semibold text-muted">
         <Layers class="h-4 w-4 text-primary" aria-hidden="true" />
         {{ t('explain.blend') }}
+        <TermHint term="blend" class="ml-auto" />
       </div>
-      <p class="mt-1 text-sm text-muted">{{ t('explain.blendText') }}</p>
+      <p class="mt-1 text-sm text-muted">{{ t('explain.blendText', { time: firstHour }) }}</p>
       <ul class="mt-4 space-y-2.5">
-        <li v-for="p in parts" :key="p.key" class="flex items-center gap-3 text-sm">
-          <span class="h-2.5 w-2.5 rounded-full" :style="{ background: p.color }" />
+        <li v-for="p in parts" :key="p.key" class="flex items-center gap-2 text-sm">
+          <span class="h-2.5 w-2.5 shrink-0 rounded-full" :style="{ background: p.color }" />
           <span class="text-ink">{{ t(`modelNames.${p.key}`) }}</span>
-          <span class="num ml-auto text-ink">{{ formatNumber(p.value, lang) }}</span>
+          <TermHint :term="`model_${p.key}`" />
+          <span class="num ml-auto text-ink">{{ formatNumber(p.value, lang, 0) }}</span>
         </li>
-        <li class="flex items-center gap-3 border-t border-line pt-2.5 text-sm font-semibold">
-          <span class="h-2.5 w-2.5 rounded-full" :style="{ background: modelColor(explain.blend.model) }" />
-          <span class="text-ink">{{ t(`modelNames.${explain.blend.model}`) }}</span>
-          <span class="num ml-auto text-ink">{{ formatNumber(explain.blend.pred[0], lang) }}</span>
+        <li class="flex items-center gap-2 border-t border-line pt-2.5 text-sm font-semibold">
+          <span class="h-2.5 w-2.5 shrink-0 rounded-full" :style="{ background: modelColor(explain.blend.model) }" />
+          <span class="text-ink">{{ t('explain.result') }}</span>
+          <span class="num ml-auto text-ink">{{ formatNumber(explain.blend.pred[0], lang, 0) }}</span>
         </li>
       </ul>
+      <p class="mt-3 text-xs text-faint">{{ t('explain.unit') }}</p>
     </div>
   </div>
 </template>

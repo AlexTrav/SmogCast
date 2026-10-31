@@ -123,7 +123,7 @@ const windDir = computed(() => weather.value?.values.wind_dir?.[0] ?? null)
           <div v-else class="skeleton mt-4 h-48 rounded-2xl bg-surface-2" />
         </section>
         <section class="card p-5 sm:p-6">
-          <h2 class="text-lg font-bold tracking-tight text-ink">{{ t('outlook.windowsTitle') }}</h2>
+          <h2 class="flex items-center gap-2 text-lg font-bold tracking-tight text-ink">{{ t('outlook.windowsTitle') }} <TermHint term="bestTimes" /></h2>
           <p class="mt-1 text-sm text-muted">{{ t('outlook.windowsSubtitle') }}</p>
           <div class="mt-4">
             <BestTimes v-if="days.length" :days="days" />
@@ -131,7 +131,7 @@ const windDir = computed(() => weather.value?.values.wind_dir?.[0] ?? null)
           </div>
         </section>
         <section class="card p-5 sm:p-6">
-          <h2 class="text-lg font-bold tracking-tight text-ink">{{ t('factors.title') }}</h2>
+          <h2 class="flex items-center gap-2 text-lg font-bold tracking-tight text-ink">{{ t('factors.title') }} <TermHint term="factors" /></h2>
           <p class="mt-1 text-sm text-muted">{{ t('factors.subtitle') }}</p>
           <div class="mt-4">
             <FactorList v-if="weather" :factors="weather.factors" />
@@ -140,7 +140,7 @@ const windDir = computed(() => weather.value?.values.wind_dir?.[0] ?? null)
         </section>
         <section class="card p-5 sm:p-6">
           <h2 class="flex items-center gap-2 text-lg font-bold tracking-tight text-ink">{{ t('forecast.scale') }} <TermHint term="aqi" /></h2>
-          <p class="mt-1 text-sm text-muted">{{ t('forecast.scaleNote') }}</p>
+          <p class="mt-1 flex items-center gap-1.5 text-sm text-muted">{{ t('forecast.scaleNote') }} <TermHint term="epa" /></p>
           <div class="mt-4">
             <LevelScale v-if="status" :pm="status.pm2_5" />
           </div>

@@ -78,7 +78,7 @@ const extremes = computed(() => {
       </div>
       <div class="flex gap-6 text-right">
         <div>
-          <p class="eyebrow">{{ t('forecast.peak') }}</p>
+          <p class="eyebrow flex items-center justify-end gap-1">{{ t('forecast.peak') }} <TermHint term="peakMin" /></p>
           <p class="num text-2xl font-semibold text-ink">{{ formatNumber(extremes.peak.value, lang) }}</p>
           <p class="text-xs text-faint">{{ formatDateHour(extremes.peak.time, lang) }}</p>
         </div>
@@ -92,6 +92,8 @@ const extremes = computed(() => {
 
     <!-- горизонт и переключатели -->
     <div class="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3">
+      <span class="-mr-3 text-sm text-muted">{{ t('forecast.horizon') }}</span>
+      <TermHint term="horizon" class="-mr-2" />
       <div class="inline-flex rounded-full border border-line p-0.5" role="radiogroup" :aria-label="t('forecast.horizon')">
         <button
           v-for="h in HORIZONS"
@@ -120,7 +122,7 @@ const extremes = computed(() => {
     <p v-if="!single" class="mt-2 text-xs text-faint">{{ t('forecast.bandOne') }}</p>
 
     <!-- модели галочками: у каждой свой закреплённый цвет, можно выбрать несколько -->
-    <p class="mt-5 flex items-center gap-2 text-sm font-medium text-muted">{{ t('forecast.compare') }} <TermHint term="blend" /></p>
+    <p class="mt-5 flex items-center gap-2 text-sm font-medium text-muted">{{ t('forecast.compare') }} <TermHint term="models" /></p>
     <div class="mt-2 flex flex-wrap gap-2" role="group" :aria-label="t('forecast.compare')">
       <button
         v-for="key in models"
@@ -159,7 +161,7 @@ const extremes = computed(() => {
         </li>
       </template>
       <li v-if="cams" class="flex items-center gap-2"><span class="w-5 border-t-2 border-dashed border-muted" />{{ t('forecast.cams') }}</li>
-      <li class="flex items-center gap-2 text-faint">{{ t('forecast.bandsNote') }}</li>
+      <li class="flex items-center gap-2 text-faint">{{ t('forecast.bandsNote') }} <TermHint term="level" /></li>
     </ul>
     <div class="mt-3">
       <ForecastChart v-if="actual && shown.length" :forecasts="shown" :actual="actual" :hours="hours" :band="band" :cams="cams" />

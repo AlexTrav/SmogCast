@@ -166,7 +166,7 @@ const aboveCity = computed(() => {
           </p>
 
           <div class="animate-rise mt-6 flex flex-wrap items-center gap-3" style="animation-delay: 200ms">
-            <LevelBadge :level="status.level" glass />
+            <span class="flex items-center gap-1.5"><LevelBadge :level="status.level" glass /> <TermHint term="level" glass /></span>
             <span class="rounded-full bg-white/15 px-3.5 py-1.5 text-sm font-semibold ring-1 ring-white/25 backdrop-blur-md lg:hidden">
               US AQI <span class="tabular-nums">{{ status.aqi }}</span>
             </span>
@@ -307,6 +307,7 @@ const aboveCity = computed(() => {
         <p class="-mt-2 text-center">
           <span class="text-4xl font-light tabular-nums">{{ status.aqi }}</span>
           <span class="ml-1.5 text-sm text-white/70">US AQI</span>
+          <TermHint term="aqi" glass class="ml-1 align-middle" />
         </p>
         <!-- погода того же часа и солнце: у каждого – подпись и «?» с объяснением, как это влияет на смог -->
         <dl class="mt-5 grid grid-cols-3 gap-x-2 gap-y-4 border-t border-white/15 pt-4 text-center text-sm">
