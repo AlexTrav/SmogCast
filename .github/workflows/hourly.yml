@@ -1,0 +1,30 @@
+# ежечасное обновление базы Neon: свежие часы ряда, снимки прогнозов CAMS и погоды IFS, запись в журнал runs.
+# GitHub может запустить cron с опозданием или пропустить запуск – следующий запуск догонит ряд
+# (последние 7 дней перезапрашиваются), а пропущенный снимок прогноза восстановить нельзя
+name: Hourly update
+
+on:
+  schedule:
+    - cron: "17 * * * *"  # не в начале часа: в это время очередь GitHub перегружена
+  workflow_dispatch:
+
+# запуски не накладываются друг на друга: следующий ждёт окончания текущего
+concurrency:
+  group: hourly-update
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build data image
+        run: docker build -t smogcast-data data
+      - name: Update series and save forecasts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: docker run --rm -e DATABASE_URL smogcast-data hourly

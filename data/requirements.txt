@@ -1,4 +1,6 @@
 requests==2.34.2
 pandas==3.1.0
+# Postgres (Neon): живой ряд, снимки прогнозов, журнал запусков
+psycopg[binary]==3.3.6
 # тесты сбора и проверки ряда (make test)
 pytest==9.2.0

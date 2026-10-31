@@ -14,6 +14,11 @@ START_DATE = date(2022, 9, 1)
 
 AIR_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
 WEATHER_URL = "https://archive-api.open-meteo.com/v1/archive"
+# прогноз погоды – модель ECMWF IFS: на прошедших часах она совпадает с архивом best_match, из которого ряд,
+# поэтому признаки погоды при прогнозе берутся из того же источника, что и при обучении
+WEATHER_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
+WEATHER_FORECAST_MODEL = "ecmwf_ifs"
+FORECAST_DAYS = 5  # глубина снимков прогнозов CAMS и погоды
 
 # переменная API -> короткое имя колонки в CSV
 AIR_VARS = {
