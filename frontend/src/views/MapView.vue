@@ -6,14 +6,16 @@ import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vu
 import { useI18n } from 'vue-i18n'
 import { api } from '../api/client'
 import LevelBadge from '../components/LevelBadge.vue'
+import TermHint from '../components/TermHint.vue'
 import { useTheme } from '../composables/useTheme'
 import type { AppLocale, AqiLevel, Region } from '../types'
 import { LEVELS } from '../utils/aqi'
 import { formatDateHour, formatNumber } from '../utils/format'
 import { cellsAt, cellsGeoJSON, hourTime, nowHour } from '../utils/region'
 
-// карта долины: сетка CAMS 5x5 поверх 3D-рельефа Заилийского Алатау; ползунок и «Проиграть» – сутки назад
-// и трое суток вперёд; подложка CARTO (без ключа), рельеф – открытые плитки высот AWS Terrain Tiles
+// карта Алматы и окрестностей: сетка CAMS 5x5 на плоской карте с тенью рельефа (видно, где горы); ползунок и
+// «Проиграть» – сутки назад и трое суток вперёд; подложка CARTO (без ключа), тень рельефа – AWS Terrain Tiles.
+// Карту нельзя увести дальше сетки: весь город – одна клетка модели, по районам открытых данных нет
 const { t, locale } = useI18n()
 const lang = computed(() => locale.value as AppLocale)
 const { theme } = useTheme()
@@ -87,15 +89,14 @@ function paint() {
   })
 }
 
-// слои после загрузки стиля (и заново после смены темы): рельеф с тенью, клетки CAMS под подписями городов
+// слои после загрузки стиля (и заново после смены темы): тень рельефа, клетки CAMS под подписями городов
 function addLayers() {
   const m = map.value
   const r = region.value
   if (!m || !r) return
   const dark = theme.value === 'dark'
   const dem = { type: 'raster-dem' as const, tiles: [TERRAIN], tileSize: 256, encoding: 'terrarium' as const, maxzoom: 13 }
-  m.addSource('dem', { ...dem, attribution: TERRAIN_ATTRIBUTION })
-  m.addSource('shade', dem)
+  m.addSource('shade', { ...dem, attribution: TERRAIN_ATTRIBUTION })
   const firstSymbol = m.getStyle().layers.find((l) => l.type === 'symbol')?.id
   m.addLayer({
     id: 'hillshade', type: 'hillshade', source: 'shade',
@@ -114,8 +115,13 @@ function addLayers() {
       'line-width': ['case', ['get', 'city'], 2.5, 0.8],
     },
   }, firstSymbol)
-  m.setTerrain({ source: 'dem', exaggeration: 1.5 })
   paint()
+}
+
+// границы области: сетка CAMS и полклетки запаса вокруг
+function bounds(r: Region): [[number, number], [number, number]] {
+  const pad = 0.5
+  return [[Math.min(...r.lons) - pad, Math.min(...r.lats) - pad], [Math.max(...r.lons) + pad, Math.max(...r.lats) + pad]]
 }
 
 function createMap() {
@@ -124,16 +130,22 @@ function createMap() {
     const m = new maplibregl.Map({
       container: el.value,
       style: STYLES[theme.value],
-      // взгляд с севера на юг, как на первом экране: город впереди, хребет Заилийского Алатау – на заднем плане
-      center: [76.9, 43.15],
-      zoom: 8.2,
-      pitch: 62,
-      bearing: 172,
-      maxPitch: 75,
+      // плоская карта, север сверху: сразу Алматы с окрестностями, дальше сетки CAMS не уехать
+      center: [76.92, 43.24],
+      zoom: 8.6,
+      minZoom: 7.6,
+      maxZoom: 12,
+      maxBounds: bounds(region.value!),
+      pitch: 0,
+      bearing: 0,
+      dragRotate: false,
+      pitchWithRotate: false,
+      touchPitch: false,
       attributionControl: { compact: true },
       fadeDuration: still ? 0 : 300,
     })
-    m.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right')
+    m.touchZoomRotate.disableRotation()
+    m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
     m.on('style.load', addLayers)
     m.on('load', () => (ready.value = true))
     // клик по клетке – значение словами и ветер
@@ -171,14 +183,8 @@ onMounted(async () => {
 
 watch(hour, paint)
 watch(lang, paint)
-// смена темы – другая подложка; слои добавятся заново на style.load. Рельеф отключается заранее: иначе
-// MapLibre рисует кадр с рельефом из источника старого стиля, которого уже нет, и падает
-watch(theme, (value) => {
-  const m = map.value
-  if (!m) return
-  m.setTerrain(null)
-  m.setStyle(STYLES[value], { diff: false })
-})
+// смена темы – другая подложка; слои добавятся заново на style.load
+watch(theme, (value) => map.value?.setStyle(STYLES[value], { diff: false }))
 
 function play() {
   if (!region.value) return
@@ -205,6 +211,9 @@ onBeforeUnmount(() => {
     <p class="eyebrow animate-rise">{{ t('map.eyebrow') }}</p>
     <h1 class="animate-rise mt-3 text-4xl font-bold tracking-tight text-ink sm:text-5xl" style="animation-delay: 60ms">{{ t('map.title') }}</h1>
     <p class="animate-rise mt-4 max-w-3xl text-lg leading-relaxed text-muted" style="animation-delay: 120ms">{{ t('map.intro') }}</p>
+    <p class="animate-rise mt-4 flex max-w-3xl items-start gap-2 rounded-2xl bg-primary-soft/60 p-4 text-[15px] leading-relaxed text-ink" style="animation-delay: 160ms">
+      <span>{{ t('map.oneCell') }}</span> <TermHint term="mapCell" />
+    </p>
 
     <div class="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
       <section class="card relative min-w-0 overflow-hidden">
@@ -234,16 +243,17 @@ onBeforeUnmount(() => {
             <span class="ml-1 rounded-full px-2 py-0.5 text-xs" :class="when === 'future' ? 'bg-primary-soft text-primary-strong' : 'bg-surface-2 text-muted'">
               {{ t(`map.${when}`) }}
             </span>
+            <TermHint term="mapWhen" class="ml-1" />
           </span>
         </div>
       </section>
 
       <aside class="min-w-0 space-y-6">
         <section class="card p-5">
-          <h2 class="text-lg font-bold text-ink">{{ t('map.selected') }}</h2>
+          <h2 class="flex items-center gap-2 text-lg font-bold text-ink">{{ t('map.selected') }} <TermHint term="mapHour" /></h2>
           <dl v-if="city && worst" class="mt-4 space-y-4 text-sm">
             <div>
-              <dt class="text-muted">{{ t('map.cityCell') }}</dt>
+              <dt class="flex items-center gap-1.5 text-muted">{{ t('map.cityCell') }} <TermHint term="cityCell" /></dt>
               <dd class="mt-1 flex flex-wrap items-center gap-2">
                 <span class="num text-2xl font-semibold text-ink">{{ formatNumber(city.pm, lang, 0) }}</span>
                 <span class="text-muted">{{ t('hero.unit') }}</span>
@@ -252,7 +262,7 @@ onBeforeUnmount(() => {
               <dd v-if="city.wind != null" class="mt-1 text-muted">{{ t('map.wind', { value: formatNumber(city.wind, lang, 0) }) }}</dd>
             </div>
             <div>
-              <dt class="text-muted">{{ t('map.maxCell') }}</dt>
+              <dt class="flex items-center gap-1.5 text-muted">{{ t('map.maxCell') }} <TermHint term="maxCell" /></dt>
               <dd class="mt-1 flex flex-wrap items-center gap-2">
                 <span class="num text-2xl font-semibold text-ink">{{ formatNumber(worst.pm, lang, 0) }}</span>
                 <LevelBadge :level="worst.level" />
@@ -263,7 +273,7 @@ onBeforeUnmount(() => {
           <div v-else class="skeleton mt-4 h-40 rounded-2xl bg-surface-2" />
         </section>
         <section class="card p-5">
-          <h2 class="text-lg font-bold text-ink">{{ t('map.legend') }}</h2>
+          <h2 class="flex items-center gap-2 text-lg font-bold text-ink">{{ t('map.legend') }} <TermHint term="level" /></h2>
           <ul class="mt-3 space-y-1.5 text-sm">
             <li v-for="l in LEVELS" :key="l.key" class="flex items-center justify-between gap-2">
               <span class="flex items-center gap-2 text-ink">
