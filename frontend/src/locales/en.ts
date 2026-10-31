@@ -11,6 +11,13 @@ const messages: typeof ru = {
     language: 'Language',
   },
   hero: {
+    play: 'Play the forecast',
+    pause: 'Pause',
+    pmAhead: 'PM2.5 in {n} h',
+    forecastFor: 'forecast for {time}',
+    timeline: 'Forecast hour',
+    ahead: '+{n} h',
+    backNow: 'Back to now',
     share: 'Share',
     aboveCity: 'Above the city',
     sunrise: 'Sunrise',

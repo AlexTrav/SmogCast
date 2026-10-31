@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { Navigation2, Share2, Sunrise, Sunset } from 'lucide-vue-next'
-import { computed } from 'vue'
+import { Navigation2, Pause, Play, Share2, Sunrise, Sunset, X } from 'lucide-vue-next'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { useCountUp } from '../../composables/useCountUp'
 import { useLive } from '../../composables/useLive'
 import { useSensitive } from '../../composables/useSensitive'
-import type { AppLocale } from '../../types'
+import type { AppLocale, Forecast } from '../../types'
 import { aqiOf, levelOf, WHO_24H } from '../../utils/aqi'
 import { countdown, formatDateHour, formatHour, formatNumber } from '../../utils/format'
 import { drawCard, shareCard } from '../../utils/share'
@@ -18,7 +18,7 @@ import SkyScene from '../SkyScene.vue'
 
 // первый экран: небо над Алматы – цвет и дымка от текущего PM2.5, фаза (день, рассвет, закат, ночь) – по
 // настоящему восходу и закату в Алматы, частицы дрейфуют по прогнозу ветра
-const props = defineProps<{ wind?: number | null; windDir?: number | null }>()
+const props = defineProps<{ wind?: number | null; windDir?: number | null; forecast?: Forecast | null }>()
 const { t, locale } = useI18n()
 const lang = computed(() => locale.value as AppLocale)
 const { status: live, now, next, updating } = useLive()
@@ -31,13 +31,52 @@ const demoPm = computed(() => {
   const v = Number(route.query.pm)
   return route.query.pm !== undefined && Number.isFinite(v) && v >= 0 ? v : null
 })
+
+// «Промотать прогноз»: небо, дымка, цифра и уровень проходят по часам прогноза смеси (час за STEP_MS);
+// фаза неба – по настоящему восходу и закату того часа; ползунок – перейти к любому часу
+const STEP_MS = 220
+const hour = ref<number | null>(null)
+const playing = ref(false)
+let timer: ReturnType<typeof setInterval> | undefined
+const last = computed(() => (props.forecast?.pred.length ?? 1) - 1)
+const hourTime = computed(() =>
+  hour.value == null || !props.forecast ? null : new Date(new Date(props.forecast.start).getTime() + hour.value * 3_600_000),
+)
+
+function play() {
+  if (!props.forecast) return
+  if (hour.value == null || hour.value >= last.value) hour.value = 0
+  playing.value = true
+  clearInterval(timer)
+  timer = setInterval(() => {
+    if (hour.value == null || hour.value >= last.value) return pause()
+    hour.value++
+  }, STEP_MS)
+}
+function pause() {
+  playing.value = false
+  clearInterval(timer)
+}
+function stop() {
+  pause()
+  hour.value = null
+}
+onBeforeUnmount(() => clearInterval(timer))
+
 const status = computed(() => {
   const s = live.value
-  if (!s || demoPm.value === null) return s
-  return { ...s, pm2_5: demoPm.value, level: levelOf(demoPm.value), aqi: aqiOf(demoPm.value), change_24h: null }
+  if (!s) return s
+  const v = hourTime.value ? props.forecast!.pred[hour.value!] : demoPm.value
+  if (v === null) return s
+  return {
+    ...s, pm2_5: v, level: levelOf(v), aqi: aqiOf(v), change_24h: null,
+    ...(hourTime.value ? { time: hourTime.value.toISOString() } : {}),
+  }
 })
 const phase = computed<SkyPhase>(() =>
-  PHASES.includes(route.query.sky as SkyPhase) ? (route.query.sky as SkyPhase) : skyPhase(now.value),
+  hourTime.value
+    ? skyPhase(hourTime.value)
+    : PHASES.includes(route.query.sky as SkyPhase) ? (route.query.sky as SkyPhase) : skyPhase(now.value),
 )
 const sun = computed(() => sunTimes(now.value))
 
@@ -83,17 +122,19 @@ const windArrow = computed(() => (props.windDir == null ? 0 : (props.windDir + 1
             <span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-300" />
           </span>
           {{ t('hero.place') }} · {{ t('hero.live') }}
-          <span v-if="status" class="text-white/70 tabular-nums">· {{ t('hero.dataFor', { time: formatHour(status.time, lang) }) }}</span>
+          <span v-if="status" class="text-white/70 tabular-nums">
+            · {{ hourTime ? t('hero.forecastFor', { time: formatDateHour(hourTime, lang) }) : t('hero.dataFor', { time: formatHour(status.time, lang) }) }}
+          </span>
         </p>
 
         <template v-if="status">
           <!-- relative z-10: строка крупной цифры выше своего текста и иначе перекрывала бы значок «?» -->
           <p class="animate-rise relative z-10 mt-8 flex items-center gap-2 text-sm font-semibold tracking-[0.14em] text-white/70 uppercase" style="animation-delay: 80ms">
-            {{ t('hero.pm') }} <TermHint term="pm25" glass />
+            {{ hour != null ? t('hero.pmAhead', { n: hour + 1 }) : t('hero.pm') }} <TermHint term="pm25" glass />
           </p>
           <div class="animate-rise mt-2 flex items-end gap-4" style="animation-delay: 140ms" data-tour="hero">
             <span class="text-[7rem] leading-[0.85] font-extralight tracking-tight drop-shadow-sm sm:text-[10rem]">
-              {{ formatNumber(shownPm ?? status.pm2_5, lang) }}
+              {{ formatNumber(hour != null ? status.pm2_5 : (shownPm ?? status.pm2_5), lang) }}
             </span>
             <span class="mb-3 text-xl text-white/80 sm:mb-5">{{ t('hero.unit') }}</span>
           </div>
@@ -123,10 +164,39 @@ const windArrow = computed(() => (props.windDir == null ? 0 : (props.windDir + 1
               <template v-else>{{ t('hero.nextUpdate', { time: countdown(next.getTime() - now.getTime()) }) }}</template>
             </p>
             <button
-              class="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-sm font-medium ring-1 ring-white/25 backdrop-blur-md transition-colors hover:bg-white/25"
+              class="inline-flex items-center gap-2 rounded-full bg-black/20 px-4 py-2 text-sm font-medium ring-1 ring-white/25 backdrop-blur-md transition-colors hover:bg-black/30"
               @click="share"
             >
               <Share2 class="h-4 w-4" aria-hidden="true" />{{ t('hero.share') }}
+            </button>
+            <button
+              v-if="forecast"
+              class="inline-flex items-center gap-2 rounded-full bg-black/20 px-4 py-2 text-sm font-medium ring-1 ring-white/25 backdrop-blur-md transition-colors hover:bg-black/30"
+              :aria-pressed="playing"
+              @click="playing ? pause() : play()"
+            >
+              <component :is="playing ? Pause : Play" class="h-4 w-4" aria-hidden="true" />
+              {{ playing ? t('hero.pause') : t('hero.play') }}
+            </button>
+          </div>
+
+          <!-- ползунок по часам прогноза: виден, пока прогноз проигрывается или стоит на паузе -->
+          <div
+            v-if="hour != null && forecast"
+            class="mt-4 flex max-w-xl items-center gap-3 rounded-2xl bg-black/25 px-4 py-3 ring-1 ring-white/15 backdrop-blur-md"
+          >
+            <input
+              v-model.number="hour"
+              type="range"
+              min="0"
+              :max="last"
+              class="w-full accent-white"
+              :aria-label="t('hero.timeline')"
+              @input="pause"
+            />
+            <span class="w-14 shrink-0 text-right text-sm tabular-nums">{{ t('hero.ahead', { n: hour + 1 }) }}</span>
+            <button class="rounded-full p-1 text-white/80 hover:bg-white/15 hover:text-white" :aria-label="t('hero.backNow')" @click="stop">
+              <X class="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
         </template>

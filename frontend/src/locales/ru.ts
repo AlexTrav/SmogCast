@@ -9,6 +9,13 @@ const messages = {
     language: 'Язык',
   },
   hero: {
+    play: 'Промотать прогноз',
+    pause: 'Пауза',
+    pmAhead: 'PM2.5 через {n} ч',
+    forecastFor: 'прогноз на {time}',
+    timeline: 'Час прогноза',
+    ahead: '+{n} ч',
+    backNow: 'Вернуться к «сейчас»',
     share: 'Поделиться',
     aboveCity: 'Над городом',
     sunrise: 'Восход',

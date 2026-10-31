@@ -11,6 +11,13 @@ const messages: typeof ru = {
     language: 'Тіл',
   },
   hero: {
+    play: 'Болжамды айналдыру',
+    pause: 'Кідірту',
+    pmAhead: '{n} сағаттан кейін PM2.5',
+    forecastFor: '{time} болжамы',
+    timeline: 'Болжам сағаты',
+    ahead: '+{n} сағ',
+    backNow: '«Қазірге» оралу',
     share: 'Бөлісу',
     aboveCity: 'Қала үстінде',
     sunrise: 'Күн шығуы',

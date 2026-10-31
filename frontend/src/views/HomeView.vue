@@ -60,7 +60,7 @@ const windDir = computed(() => weather.value?.values.wind_dir?.[0] ?? null)
 
 <template>
   <div>
-    <SkyHero :wind="wind" :wind-dir="windDir" />
+    <SkyHero :wind="wind" :wind-dir="windDir" :forecast="main" />
 
     <div class="relative z-10 mx-auto -mt-20 grid max-w-7xl grid-cols-1 gap-6 px-4 sm:px-6 lg:grid-cols-3">
       <!-- min-w-0: длинная лента по часам не должна раздвигать колонку сетки -->
