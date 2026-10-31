@@ -7,7 +7,7 @@ import { formatNumber } from '../../utils/format'
 import { modelColor, modelTerm } from '../../utils/models'
 
 // рейтинг на тестовом году: MAE по горизонтам, выигрыш над «как вчера», доля угаданных уровней AQI
-// и попадание в интервал 80 % (на первых сутках); † – значимо хуже модели по умолчанию
+// и попадание в интервал 80 % (на первых сутках)
 const props = defineProps<{ report: ModelsReport['test'] }>()
 const { t, locale } = useI18n()
 const lang = computed(() => locale.value as AppLocale)
@@ -15,18 +15,14 @@ const BUCKETS: Bucket[] = ['1–24', '25–48', '49–72']
 
 const rows = computed(() =>
   Object.entries(props.report.models)
-    .map(([key, m]) => {
-      const dm = props.report.dm_vs_default[key]?.['1–24']
-      return {
-        key,
-        mae: BUCKETS.map((b) => m.buckets[b].mae),
-        mean: m.mae_1_72,
-        skill: m.buckets['1–24'].skill,
-        level: props.report.aqi[key]?.['1–24']?.level_exact,
-        cover: m.buckets['1–24'].cover80,
-        worse: dm != null && dm.p_value < 0.05 && dm.mae_diff < 0,
-      }
-    })
+    .map(([key, m]) => ({
+      key,
+      mae: BUCKETS.map((b) => m.buckets[b].mae),
+      mean: m.mae_1_72,
+      skill: m.buckets['1–24'].skill,
+      level: props.report.aqi[key]?.['1–24']?.level_exact,
+      cover: m.buckets['1–24'].cover80,
+    }))
     .sort((a, b) => a.mean - b.mean),
 )
 const percent = (v: number | undefined) => (v == null || Number.isNaN(v) ? '–' : `${formatNumber(v * 100, lang.value, 0)} %`)
@@ -62,7 +58,6 @@ const percent = (v: number | undefined) => (v == null || Number.isNaN(v) ? '–'
               <span v-if="r.key === report.meta.default" class="rounded-full bg-primary px-2 py-0.5 text-[11px] font-semibold text-on-primary">
                 {{ t('modelsPage.defaultModel') }}
               </span>
-              <span v-if="r.worse" class="text-faint" :title="t('modelsPage.worse')">†</span>
             </span>
           </td>
           <td v-for="(v, i) in r.mae" :key="i" class="num px-3 py-2.5 text-right text-ink">{{ formatNumber(v, lang, 2) }}</td>
@@ -73,6 +68,5 @@ const percent = (v: number | undefined) => (v == null || Number.isNaN(v) ? '–'
         </tr>
       </tbody>
     </table>
-    <p class="mt-3 flex items-center gap-1.5 text-xs text-faint">† {{ t('modelsPage.worse') }} <TermHint term="dm" /></p>
   </div>
 </template>
