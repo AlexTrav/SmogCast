@@ -1,6 +1,9 @@
 import type { AppLocale } from '../types'
 
-const TAGS: Record<AppLocale, string> = { ru: 'ru-RU', kk: 'kk-KZ', en: 'en-GB' }
+// казахские правила (запятая, 24 ч) есть не в каждом браузере: Chromium без них откатывается на английские,
+// поэтому числа и часы для kk форматируются по русским правилам (они совпадают), а месяцы – своим списком
+const TAGS: Record<AppLocale, string> = { ru: 'ru-RU', kk: 'ru-RU', en: 'en-GB' }
+const KK_MONTHS = ['қаң.', 'ақп.', 'нау.', 'сәу.', 'мам.', 'мау.', 'шіл.', 'там.', 'қыр.', 'қаз.', 'қар.', 'жел.']
 export const TZ = 'Asia/Almaty'
 
 export function formatNumber(value: number, locale: AppLocale, digits = 1): string {
@@ -11,25 +14,28 @@ export function formatNumber(value: number, locale: AppLocale, digits = 1): stri
 
 // время по Алматы: «20:00»
 export function formatHour(iso: string | Date, locale: AppLocale): string {
-  return new Intl.DateTimeFormat(TAGS[locale], { hour: '2-digit', minute: '2-digit', timeZone: TZ }).format(
-    new Date(iso),
-  )
-}
-
-// «31 окт., 20:00»
-export function formatDateHour(iso: string | Date, locale: AppLocale): string {
   return new Intl.DateTimeFormat(TAGS[locale], {
-    day: 'numeric',
-    month: 'short',
     hour: '2-digit',
     minute: '2-digit',
+    hourCycle: 'h23',
     timeZone: TZ,
   }).format(new Date(iso))
 }
 
-// «1 нояб.»
+// «1 нояб.», «1 қар.», «1 Nov»
 export function formatDay(iso: string | Date, locale: AppLocale): string {
-  return new Intl.DateTimeFormat(TAGS[locale], { day: 'numeric', month: 'short', timeZone: TZ }).format(new Date(iso))
+  const date = new Date(iso)
+  if (locale === 'kk') {
+    const parts = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'numeric', timeZone: TZ }).formatToParts(date)
+    const part = (type: string) => Number(parts.find((p) => p.type === type)?.value)
+    return `${part('day')} ${KK_MONTHS[part('month') - 1]}`
+  }
+  return new Intl.DateTimeFormat(TAGS[locale], { day: 'numeric', month: 'short', timeZone: TZ }).format(date)
+}
+
+// «31 окт., 20:00»
+export function formatDateHour(iso: string | Date, locale: AppLocale): string {
+  return `${formatDay(iso, locale)}, ${formatHour(iso, locale)}`
 }
 
 // день по Алматы в виде YYYY-MM-DD (для запросов истории), со сдвигом в днях

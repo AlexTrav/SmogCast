@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { aqiOf, hazeOpacity, levelOf, skyColors } from './aqi'
-import { countdown, formatNumber, localDay, localHour, nextRun } from './format'
+import { countdown, formatDateHour, formatHour, formatNumber, localDay, localHour, nextRun } from './format'
 
 describe('уровни US AQI', () => {
   it('совпадают с порогами EPA 2024 и бэкендом', () => {
@@ -37,6 +37,14 @@ describe('форматирование', () => {
     expect(formatNumber(48.9, 'ru')).toBe('48,9')
     expect(formatNumber(48.9, 'kk')).toBe('48,9')
     expect(formatNumber(48.9, 'en')).toBe('48.9')
+  })
+
+  it('время – 24-часовое, месяцы по-казахски свои, не зависят от браузера', () => {
+    const t = '2026-11-01T16:00:00Z' // 21:00 1 ноября по Алматы
+    expect(formatHour(t, 'en')).toBe('21:00')
+    expect(formatDateHour(t, 'kk')).toBe('1 қар., 21:00')
+    expect(formatDateHour(t, 'ru')).toBe('1 нояб., 21:00')
+    expect(formatDateHour(t, 'en')).toBe('1 Nov, 21:00')
   })
 
   it('день и час – по Алматы (UTC+5)', () => {
