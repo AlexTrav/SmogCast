@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
-// взвесь в воздухе: число частиц растёт с PM2.5; при prefers-reduced-motion частицы стоят на месте
-const props = defineProps<{ pm: number; night: boolean }>()
+// взвесь в воздухе: число частиц растёт с PM2.5, дрейф – по ветру (скорость в км/ч, направление – откуда дует,
+// как в метеорологии); при prefers-reduced-motion частицы стоят на месте
+const props = defineProps<{ pm: number; night: boolean; wind?: number | null; windDir?: number | null }>()
 const canvas = ref<HTMLCanvasElement | null>(null)
 
 interface Particle {
@@ -23,12 +24,19 @@ function count(pm: number): number {
   return Math.round(Math.min(420, Math.max(12, pm * 4)))
 }
 
+// снос по ветру в пикселях за кадр: ветер с запада (270°) несёт частицы вправо, с востока – влево
+function drift(): number {
+  if (props.wind == null || props.windDir == null) return 0.18
+  const toward = -Math.sin((props.windDir * Math.PI) / 180)
+  return toward * Math.min(props.wind, 25) * 0.09
+}
+
 function spawn(w: number, h: number): Particle {
   return {
     x: Math.random() * w,
     y: Math.random() * h,
     r: 0.6 + Math.random() * 1.8,
-    vx: 0.08 + Math.random() * 0.25,
+    vx: 0.04 + Math.random() * 0.1,
     vy: (Math.random() - 0.5) * 0.08,
     a: 0.15 + Math.random() * 0.45,
   }
@@ -53,11 +61,13 @@ function draw() {
   ctx.clearRect(0, 0, w, h)
   // днём – тёплая пыль, ночью – частицы подсвечены огнями города
   const tone = props.night ? '255, 214, 170' : '255, 244, 228'
+  const wind = drift()
   for (const p of particles) {
     if (!reduce) {
-      p.x += p.vx
+      p.x += p.vx * Math.sign(wind || 1) + wind
       p.y += p.vy
       if (p.x > w + 4) p.x = -4
+      if (p.x < -4) p.x = w + 4
       if (p.y < -4 || p.y > h + 4) p.y = Math.random() * h
     }
     ctx.beginPath()

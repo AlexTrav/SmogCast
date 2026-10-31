@@ -1,4 +1,5 @@
 import type { AqiLevel } from '../types'
+import type { SkyPhase } from './sun'
 
 // уровни US AQI по PM2.5 (EPA, 2024) – верхние границы включительно, как в backend/api/levels.py
 export const LEVELS: { key: AqiLevel; upTo: number }[] = [
@@ -35,6 +36,20 @@ export function levelOf(pm: number): AqiLevel {
   return LEVELS.find((l) => c <= l.upTo)!.key
 }
 
+// положение значения на шкале из шести равных отрезков (0…1): внутри отрезка – пропорционально концентрации
+export function scalePosition(pm: number): number {
+  let low = 0
+  for (const [i, l] of LEVELS.entries()) {
+    const high = Number.isFinite(l.upTo) ? l.upTo : 500
+    if (pm <= high || i === LEVELS.length - 1) {
+      const inside = Math.min(1, Math.max(0, (pm - low) / (high - low)))
+      return (i + inside) / LEVELS.length
+    }
+    low = high
+  }
+  return 1
+}
+
 export const LEVEL_COLOR: Record<AqiLevel, string> = {
   good: 'var(--color-aqi-good)',
   moderate: 'var(--color-aqi-moderate)',
@@ -63,8 +78,18 @@ const NIGHT: Record<AqiLevel, Sky> = {
   hazardous: ['#0f0809', '#36201f', '#6b3a2a'],
 }
 
-export function skyColors(level: AqiLevel, night: boolean): Sky {
-  return (night ? NIGHT : DAY)[level]
+// рассвет и закат: синевато-лиловый верх, розовая середина и оранжевый горизонт, при смоге – грязнее
+const TWILIGHT: Record<AqiLevel, Sky> = {
+  good: ['#2b3a67', '#c97b8b', '#f6b26b'],
+  moderate: ['#33395a', '#b88482', '#eeb27a'],
+  sensitive: ['#3a3a52', '#a88478', '#e2a874'],
+  unhealthy: ['#3c3640', '#9a7a6a', '#d59a66'],
+  very_unhealthy: ['#352c30', '#86665a', '#c07f55'],
+  hazardous: ['#2a2022', '#6b4a3e', '#a0603e'],
+}
+
+export function skyColors(level: AqiLevel, phase: SkyPhase): Sky {
+  return (phase === 'day' ? DAY : phase === 'night' ? NIGHT : TWILIGHT)[level]
 }
 
 // плотность дымки 0…0,6: почти нет при чистом воздухе, горы тонут в ней при сильном смоге

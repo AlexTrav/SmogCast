@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AppLocale } from '../../types'
-import { LEVEL_COLOR, LEVELS, levelOf } from '../../utils/aqi'
+import { LEVEL_COLOR, LEVELS, levelOf, scalePosition } from '../../utils/aqi'
 import { formatNumber } from '../../utils/format'
 
 // шкала уровней US AQI: шесть отрезков равной ширины с порогами EPA и отметка текущего PM2.5
@@ -11,19 +11,7 @@ const { t, locale } = useI18n()
 const lang = computed(() => locale.value as AppLocale)
 const current = computed(() => levelOf(props.pm))
 
-// положение отметки: внутри своего отрезка – пропорционально концентрации
-const marker = computed(() => {
-  let low = 0
-  for (const [i, l] of LEVELS.entries()) {
-    const high = Number.isFinite(l.upTo) ? l.upTo : 500
-    if (props.pm <= high || i === LEVELS.length - 1) {
-      const inside = Math.min(1, Math.max(0, (props.pm - low) / (high - low)))
-      return ((i + inside) / LEVELS.length) * 100
-    }
-    low = high
-  }
-  return 100
-})
+const marker = computed(() => scalePosition(props.pm) * 100)
 </script>
 
 <template>

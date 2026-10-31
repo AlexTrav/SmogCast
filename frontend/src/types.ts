@@ -32,6 +32,25 @@ export interface Forecast {
   cams: (number | null)[]
 }
 
+export interface Explain {
+  issued_at: string
+  start: string
+  step: 'hour'
+  prophet: {
+    level: number[]
+    daily: number[]
+    yearly: number[]
+    summary: {
+      level: number
+      yearly: number
+      daily_low: { hour: number; factor: number }
+      daily_high: { hour: number; factor: number }
+    }
+  } | null
+  blend: { model: string; pred: number[]; parts: Record<string, number[]> }
+  weather: { ratio: (number | null)[]; mean_24h: number } | null
+}
+
 export interface HourlyHistory {
   start: string | null
   step: 'hour'

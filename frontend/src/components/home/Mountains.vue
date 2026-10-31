@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import type { SkyPhase } from '../../utils/sun'
 
 // силуэт Заилийского Алатау в три плана: дальний хребет со снегом, средний и предгорья с огнями города ночью;
 // дымка ложится между планами – при сильном смоге дальние горы почти исчезают
-const props = defineProps<{ haze: number; night: boolean }>()
+const props = defineProps<{ haze: number; phase: SkyPhase }>()
 
-const colors = computed(() =>
-  props.night
-    ? { far: '#22324d', snow: '#8ea3c2', mid: '#141f33', near: '#0a1120', haze: '196, 150, 110' }
-    : { far: '#7f9bbd', snow: '#ffffff', mid: '#55708f', near: '#2f4560', haze: '226, 190, 140' },
-)
+const PALETTE = {
+  day: { far: '#7f9bbd', snow: '#ffffff', mid: '#55708f', near: '#2f4560', haze: '226, 190, 140' },
+  // на рассвете и закате снег розовеет, горы – лиловые
+  twilight: { far: '#5b6684', snow: '#f6d3c6', mid: '#3a4660', near: '#1c2538', haze: '222, 168, 128' },
+  night: { far: '#22324d', snow: '#8ea3c2', mid: '#141f33', near: '#0a1120', haze: '196, 150, 110' },
+}
+const colors = computed(() => PALETTE[props.phase === 'day' || props.phase === 'night' ? props.phase : 'twilight'])
 
 // огни города в предгорьях: фиксированные точки, чтобы картинка не менялась при каждой отрисовке
 const lights = Array.from({ length: 70 }, (_, i) => ({
@@ -58,7 +61,7 @@ const lights = Array.from({ length: 70 }, (_, i) => ({
       d="M0,285 C120,265 240,272 360,262 C480,252 600,270 720,266 C840,262 960,250 1080,258 C1200,266 1320,256
          1440,262 L1440,320 L0,320 Z"
     />
-    <g v-if="night">
+    <g v-if="phase !== 'day'">
       <circle v-for="(l, i) in lights" :key="i" :cx="l.x" :cy="l.y" :r="l.r" fill="#ffd28a" :opacity="l.o" />
     </g>
   </svg>

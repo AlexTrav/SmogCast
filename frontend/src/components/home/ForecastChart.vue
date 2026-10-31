@@ -11,11 +11,13 @@ import { useTheme } from '../../composables/useTheme'
 import type { AppLocale, Forecast } from '../../types'
 import { WHO_24H } from '../../utils/aqi'
 import { formatDateHour, formatDay, formatHour, formatNumber, localHour } from '../../utils/format'
+import { MODEL_VAR } from '../../utils/models'
 
 use([LineChart, GridComponent, TooltipComponent, MarkLineComponent, SVGRenderer])
 
 // прогноз на 72 ч: веер интервалов 95 % и 80 %, линия прогноза, факт за двое суток до него и прогноз CAMS
 const props = defineProps<{ forecast: Forecast; actual: { start: string; values: (number | null)[] } }>()
+const seriesVar = computed(() => MODEL_VAR[props.forecast.model] ?? '--series-1')
 const { t, locale } = useI18n()
 const lang = computed(() => locale.value as AppLocale)
 const { theme } = useTheme()
@@ -38,7 +40,7 @@ function times(start: string, n: number): number[] {
 const option = computed(() => {
   void theme.value // цвета берутся из CSS-переменных темы – пересчитываем при смене темы
   const c = {
-    series: css('--series-1'),
+    series: css(seriesVar.value),
     ink: css('--ink'),
     muted: css('--muted'),
     faint: css('--faint'),

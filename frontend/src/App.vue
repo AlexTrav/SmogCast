@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import FooterSection from './components/FooterSection.vue'
+import FreshToast from './components/FreshToast.vue'
 import NavBar from './components/NavBar.vue'
 import ServerBanner from './components/ServerBanner.vue'
 import { useServerStatus } from './composables/useServerStatus'
@@ -16,4 +17,5 @@ onMounted(wake) // будим API сразу при открытии сайта
     <RouterView />
   </main>
   <FooterSection />
+  <FreshToast />
 </template>

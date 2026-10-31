@@ -27,8 +27,9 @@ describe('уровни US AQI', () => {
   })
 
   it('у каждого уровня своё небо днём и ночью', () => {
-    expect(skyColors('good', false)).not.toEqual(skyColors('good', true))
-    expect(skyColors('good', false)).not.toEqual(skyColors('hazardous', false))
+    expect(skyColors('good', 'day')).not.toEqual(skyColors('good', 'night'))
+    expect(skyColors('good', 'dawn')).not.toEqual(skyColors('good', 'day'))
+    expect(skyColors('good', 'day')).not.toEqual(skyColors('hazardous', 'day'))
   })
 })
 

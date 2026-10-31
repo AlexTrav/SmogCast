@@ -2,12 +2,14 @@
 import { computed, defineAsyncComponent, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api } from '../api/client'
+import ExplainCard from '../components/home/ExplainCard.vue'
 import FactorList from '../components/home/FactorList.vue'
 import LevelScale from '../components/home/LevelScale.vue'
 import SkyHero from '../components/home/SkyHero.vue'
 import { useLive } from '../composables/useLive'
-import type { AppLocale, Forecast, Weather } from '../types'
+import type { AppLocale, Explain, Forecast, Weather } from '../types'
 import { formatDateHour, formatNumber, localDay } from '../utils/format'
+import { DEFAULT_MODEL, modelColor, sortModels } from '../utils/models'
 
 // график – отдельным чанком вместе с ECharts: первый экран (небо) появляется без него
 const ForecastChart = defineAsyncComponent(() => import('../components/home/ForecastChart.vue'))
@@ -16,19 +18,41 @@ const { t, locale } = useI18n()
 const lang = computed(() => locale.value as AppLocale)
 const { status } = useLive()
 
+const model = ref(DEFAULT_MODEL)
 const forecast = ref<Forecast | null>(null)
 const actual = ref<{ start: string; values: (number | null)[] } | null>(null)
 const weather = ref<Weather | null>(null)
+const explain = ref<Explain | null>(null)
 
-// данные графика и погоды перечитываются, когда в ряду появляется новый час
+// всё, что зависит от часа ряда, перечитывается, когда ежечасная задача дописала новый час
 async function load() {
   const now = new Date()
-  const [f, h, w] = await Promise.allSettled([api.forecast(), api.hours(localDay(now, -2), localDay(now)), api.weather()])
+  const [f, h, w, e] = await Promise.allSettled([
+    api.forecast(model.value),
+    api.hours(localDay(now, -2), localDay(now)),
+    api.weather(),
+    api.explain(),
+  ])
   if (f.status === 'fulfilled') forecast.value = f.value
   if (h.status === 'fulfilled' && h.value.start) actual.value = { start: h.value.start, values: h.value.values.pm2_5 }
   if (w.status === 'fulfilled') weather.value = w.value
+  if (e.status === 'fulfilled') explain.value = e.value
 }
 watch(() => status.value?.time, load, { immediate: true })
+
+async function pick(key: string) {
+  model.value = key
+  try {
+    forecast.value = await api.forecast(key)
+  } catch {
+    // ошибку покажет плашка сервера; график остаётся прежним
+  }
+}
+
+const models = computed(() => sortModels(forecast.value?.models ?? []))
+// ветер в ближайший час – для дрейфа частиц и стрелки над городом
+const wind = computed(() => weather.value?.values.wind?.[0] ?? null)
+const windDir = computed(() => weather.value?.values.wind_dir?.[0] ?? null)
 
 const extremes = computed(() => {
   const f = forecast.value
@@ -45,7 +69,7 @@ const extremes = computed(() => {
 
 <template>
   <div>
-    <SkyHero />
+    <SkyHero :wind="wind" :wind-dir="windDir" />
 
     <div class="relative z-10 mx-auto -mt-20 grid max-w-7xl gap-6 px-4 sm:px-6 lg:grid-cols-3">
       <!-- прогноз на 72 часа -->
@@ -68,12 +92,37 @@ const extremes = computed(() => {
             </div>
           </div>
         </div>
+
+        <!-- выбор модели: у каждой свой закреплённый цвет -->
+        <div v-if="models.length" class="mt-5 flex flex-wrap gap-2" role="radiogroup" :aria-label="t('forecast.model')">
+          <button
+            v-for="key in models"
+            :key="key"
+            role="radio"
+            :aria-checked="model === key"
+            class="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors"
+            :class="model === key ? 'border-ink bg-ink text-bg' : 'border-line text-muted hover:border-faint hover:text-ink'"
+            @click="pick(key)"
+          >
+            <span class="h-2 w-2 rounded-full" :style="{ background: modelColor(key) }" />
+            {{ t(`modelNames.${key}`) }}
+          </button>
+        </div>
+
         <!-- легенда: у каждой серии своя форма линии, а не только цвет -->
-        <ul class="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted">
+        <ul class="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted">
           <li class="flex items-center gap-2"><span class="h-0.5 w-5 rounded bg-ink" />{{ t('forecast.actual') }}</li>
-          <li class="flex items-center gap-2"><span class="h-[3px] w-5 rounded" style="background: var(--series-1)" />{{ t('forecast.pred') }}</li>
-          <li class="flex items-center gap-2"><span class="h-3 w-5 rounded-sm" style="background: color-mix(in srgb, var(--series-1) 34%, transparent)" />{{ t('forecast.band80') }}</li>
-          <li class="flex items-center gap-2"><span class="h-3 w-5 rounded-sm" style="background: color-mix(in srgb, var(--series-1) 14%, transparent)" />{{ t('forecast.band95') }}</li>
+          <li class="flex items-center gap-2">
+            <span class="h-[3px] w-5 rounded" :style="{ background: modelColor(model) }" />{{ t('forecast.pred') }}
+          </li>
+          <li class="flex items-center gap-2">
+            <span class="h-3 w-5 rounded-sm" :style="{ background: `color-mix(in srgb, ${modelColor(model)} 34%, transparent)` }" />
+            {{ t('forecast.band80') }}
+          </li>
+          <li class="flex items-center gap-2">
+            <span class="h-3 w-5 rounded-sm" :style="{ background: `color-mix(in srgb, ${modelColor(model)} 14%, transparent)` }" />
+            {{ t('forecast.band95') }}
+          </li>
           <li class="flex items-center gap-2"><span class="w-5 border-t-2 border-dashed border-muted" />{{ t('forecast.cams') }}</li>
         </ul>
         <div class="mt-3">
@@ -99,6 +148,16 @@ const extremes = computed(() => {
           </div>
         </section>
       </div>
+
+      <!-- почему такой прогноз -->
+      <section v-reveal class="card p-5 sm:p-7 lg:col-span-3">
+        <h2 class="text-xl font-bold tracking-tight text-ink sm:text-2xl">{{ t('explain.title') }}</h2>
+        <p class="mt-1 max-w-3xl text-sm text-muted">{{ t('explain.subtitle') }}</p>
+        <div class="mt-6">
+          <ExplainCard v-if="explain" :explain="explain" />
+          <div v-else class="h-40 animate-pulse rounded-2xl bg-surface-2" />
+        </div>
+      </section>
     </div>
   </div>
 </template>
