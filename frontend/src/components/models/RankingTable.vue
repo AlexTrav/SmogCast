@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import TermHint from '../TermHint.vue'
 import type { AppLocale, Bucket, ModelsReport } from '../../types'
 import { formatNumber } from '../../utils/format'
-import { modelColor } from '../../utils/models'
+import { modelColor, modelTerm } from '../../utils/models'
 
 // рейтинг на тестовом году: MAE по горизонтам, выигрыш над «как вчера», доля угаданных уровней AQI
 // и попадание в интервал 80 % (на первых сутках); † – значимо хуже модели по умолчанию
@@ -37,11 +38,13 @@ const percent = (v: number | undefined) => (v == null || Number.isNaN(v) ? '–'
       <thead>
         <tr class="border-b border-line text-left text-xs tracking-wide text-faint uppercase">
           <th class="py-2.5 pr-3 font-semibold">{{ t('modelsPage.model') }}</th>
-          <th v-for="b in BUCKETS" :key="b" class="px-3 py-2.5 text-right font-semibold">{{ b }}</th>
-          <th class="px-3 py-2.5 text-right font-semibold">{{ t('modelsPage.mean') }}</th>
-          <th class="px-3 py-2.5 text-right font-semibold">{{ t('modelsPage.skill') }}</th>
-          <th class="px-3 py-2.5 text-right font-semibold">{{ t('modelsPage.levels') }}</th>
-          <th class="py-2.5 pl-3 text-right font-semibold">{{ t('modelsPage.cover') }}</th>
+          <th v-for="(b, i) in BUCKETS" :key="b" class="px-3 py-2.5 text-right font-semibold">
+            <span class="inline-flex items-center gap-1">{{ b }} <TermHint v-if="i === 0" term="buckets" /></span>
+          </th>
+          <th class="px-3 py-2.5 text-right font-semibold"><span class="inline-flex items-center gap-1">{{ t('modelsPage.mean') }} <TermHint term="mae" /></span></th>
+          <th class="px-3 py-2.5 text-right font-semibold"><span class="inline-flex items-center gap-1">{{ t('modelsPage.skill') }} <TermHint term="skill" /></span></th>
+          <th class="px-3 py-2.5 text-right font-semibold"><span class="inline-flex items-center gap-1">{{ t('modelsPage.levels') }} <TermHint term="levelHit" /></span></th>
+          <th class="py-2.5 pl-3 text-right font-semibold"><span class="inline-flex items-center gap-1">{{ t('modelsPage.cover') }} <TermHint term="cover80" /></span></th>
         </tr>
       </thead>
       <tbody>
@@ -55,6 +58,7 @@ const percent = (v: number | undefined) => (v == null || Number.isNaN(v) ? '–'
             <span class="flex items-center gap-2 text-ink">
               <span class="h-2.5 w-2.5 shrink-0 rounded-full" :style="{ background: modelColor(r.key) }" />
               {{ t(`modelNames.${r.key}`) }}
+              <TermHint :term="modelTerm(r.key)" />
               <span v-if="r.key === report.meta.default" class="rounded-full bg-primary px-2 py-0.5 text-[11px] font-semibold text-on-primary">
                 {{ t('modelsPage.defaultModel') }}
               </span>
@@ -69,6 +73,6 @@ const percent = (v: number | undefined) => (v == null || Number.isNaN(v) ? '–'
         </tr>
       </tbody>
     </table>
-    <p class="mt-3 text-xs text-faint">† {{ t('modelsPage.worse') }}</p>
+    <p class="mt-3 flex items-center gap-1.5 text-xs text-faint">† {{ t('modelsPage.worse') }} <TermHint term="dm" /></p>
   </div>
 </template>

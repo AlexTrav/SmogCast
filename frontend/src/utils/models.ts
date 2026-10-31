@@ -21,6 +21,12 @@ export function modelColor(key: string): string {
   return `var(${MODEL_VAR[key] ?? '--faint'})`
 }
 
+// ключ подсказки «?» к модели: у смесей – общая подсказка, у CAMS – своя
+export function modelTerm(key: string): string {
+  if (key.includes('+')) return 'blendAny'
+  return key === REFERENCE ? 'cams' : `model_${key}`
+}
+
 export function sortModels(keys: string[]): string[] {
   const rank = (k: string) => (MODEL_ORDER.includes(k) ? MODEL_ORDER.indexOf(k) : MODEL_ORDER.length)
   return [...keys].sort((a, b) => rank(a) - rank(b))

@@ -312,12 +312,12 @@ const aboveCity = computed(() => {
         <!-- погода того же часа и солнце: у каждого – подпись и «?» с объяснением, как это влияет на смог -->
         <dl class="mt-5 grid grid-cols-3 gap-x-2 gap-y-4 border-t border-white/15 pt-4 text-center text-sm">
           <div v-for="item in aboveCity" :key="item.term">
-            <dt class="flex items-center justify-center gap-1 text-xs text-white/65">
+            <dt class="flex min-w-0 items-center justify-center gap-1 text-xs text-white/65">
               <component :is="item.icon" class="h-3.5 w-3.5 shrink-0" :style="item.rotate == null ? undefined : { transform: `rotate(${item.rotate}deg)` }" aria-hidden="true" />
-              {{ item.label }}
-              <TermHint :term="item.term" glass />
+              <span class="truncate">{{ item.label }}</span>
             </dt>
-            <dd class="mt-1 tabular-nums">{{ item.value }}</dd>
+            <!-- «?» – у значения: в узкой ячейке рядом с подписью он налезал на соседнюю -->
+            <dd class="mt-1 flex items-center justify-center gap-1 tabular-nums">{{ item.value }} <TermHint :term="item.term" glass /></dd>
           </div>
         </dl>
       </aside>
