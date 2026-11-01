@@ -17,16 +17,25 @@ self.addEventListener('activate', (event) => {
   self.clients.claim()
 })
 
+// запрос к сети ждёт не дольше 60 с: этого хватает, чтобы бесплатный Render проснулся (~50 с), но зависший
+// запрос не держит соединение вечно (браузер даёт к одному адресу только 6 соединений, и зависшие запросы
+// подвешивают весь сайт); по истечении – последний сохранённый ответ
+const NETWORK_TIMEOUT_MS = 60_000
+
 async function networkFirst(request, cacheName, fallback) {
   const cache = await caches.open(cacheName)
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), NETWORK_TIMEOUT_MS)
   try {
-    const response = await fetch(request)
+    const response = await fetch(request, { signal: controller.signal })
     if (response.ok) cache.put(fallback ?? request, response.clone())
     return response
   } catch (error) {
     const cached = await cache.match(fallback ?? request)
     if (cached) return cached
     throw error
+  } finally {
+    clearTimeout(timer)
   }
 }
 
