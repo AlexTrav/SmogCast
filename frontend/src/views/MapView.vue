@@ -349,4 +349,33 @@ onBeforeUnmount(() => {
   font-size: 11px;
   opacity: 0.75;
 }
+/* окошко по клику на клетку: свой цвет текста и фона – иначе в тёмной теме текст наследует белый цвет страницы
+   и пропадает на белом фоне окошка */
+.maplibregl-popup-content {
+  padding: 8px 12px;
+  border-radius: 12px;
+  color: #0f1b2b;
+  font: 13px/1.5 'Onest Variable', system-ui, sans-serif;
+}
+.dark .maplibregl-popup-content {
+  background: #0f1b2b;
+  color: #e8eef7;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.5);
+}
+.dark .maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.dark .maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.dark .maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip {
+  border-top-color: #0f1b2b;
+}
+.dark .maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.dark .maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.dark .maplibregl-popup-anchor-top-right .maplibregl-popup-tip {
+  border-bottom-color: #0f1b2b;
+}
+.dark .maplibregl-popup-anchor-left .maplibregl-popup-tip {
+  border-right-color: #0f1b2b;
+}
+.dark .maplibregl-popup-anchor-right .maplibregl-popup-tip {
+  border-left-color: #0f1b2b;
+}
 </style>
