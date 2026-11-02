@@ -50,7 +50,7 @@ make site    # сайт локально на http://localhost:5173
 
 | Часть | Что проверяется | Тестов | Команда |
 |---|---|---|---|
-| data | сбор и проверка ряда, запись в базу (Postgres 18 в compose) | 29 | `make -C data test` |
+| data | сбор и проверка ряда, повторы при сбоях Open-Meteo, запись в базу (Postgres 18 в compose) | 33 | `make -C data test` |
 | research | подготовка ряда, сбой CAMS, сезоны | 11 | `make -C research test` |
 | model | честная проверка, все модели, живые прогнозы | 41 | `make -C model test` |
 | backend | все точки API, кэш и 304, пересчёт и защита (Postgres 18 в compose) | 31 | `make -C backend test` |

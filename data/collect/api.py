@@ -1,25 +1,40 @@
+import random
 import time
 from datetime import date
 
 import pandas as pd
 import requests
 
-from .config import LATITUDE, LONGITUDE, RETRIES, TIMEOUT_SEC, USER_AGENT
+from .config import BACKOFF_SEC, LATITUDE, LONGITUDE, RETRIES, RETRY_BUDGET_SEC, TIMEOUT_SEC, USER_AGENT
+
+_started = time.monotonic()  # начало запуска: общий бюджет на повторы считается от него
 
 
-# GET с повтором при обрыве соединения или ответе 5xx/429; ошибки запроса (4xx) не повторяются
+def backoff(attempt: int) -> float:
+    """Пауза перед повтором attempt (1, 2, …): 5, 10, 20, 40 с и ±20 % случайно – чтобы повторы многих
+    клиентов не били в Open-Meteo одновременно."""
+    return BACKOFF_SEC * 2 ** (attempt - 1) * random.uniform(0.8, 1.2)
+
+
+# GET с повтором при обрыве соединения, таймауте или ответе 5xx/429 (для 429 – пауза из Retry-After, если
+# сервер её назвал); ошибки запроса (4xx) не повторяются. Повторов – не больше RETRIES, а если общий бюджет
+# запуска на повторы исчерпан – последняя ошибка сразу
 def get_json(url: str, params: dict) -> dict:
     for attempt in range(1, RETRIES + 1):
+        wait = backoff(attempt)
         try:
             resp = requests.get(url, params=params, timeout=TIMEOUT_SEC, headers={"User-Agent": USER_AGENT})
         except (requests.ConnectionError, requests.Timeout):
-            if attempt == RETRIES:
+            if attempt == RETRIES or time.monotonic() - _started + wait > RETRY_BUDGET_SEC:
                 raise
         else:
-            if (resp.status_code < 500 and resp.status_code != 429) or attempt == RETRIES:
+            last = attempt == RETRIES or time.monotonic() - _started + wait > RETRY_BUDGET_SEC
+            if (resp.status_code < 500 and resp.status_code != 429) or last:
                 resp.raise_for_status()
                 return resp.json()
-        time.sleep(5 * attempt)
+            if resp.status_code == 429 and resp.headers.get("Retry-After", "").isdigit():
+                wait = max(wait, float(resp.headers["Retry-After"]))
+        time.sleep(wait)
     raise RuntimeError("unreachable")
 
 

@@ -81,4 +81,9 @@ CHUNK_DAYS = 366  # не больше года на запрос – ответ�
 
 USER_AGENT = "SmogCast-collector/1.0 (student project)"
 TIMEOUT_SEC = 60
-RETRIES = 3
+# повторы при сбое Open-Meteo: 5 попыток, паузы растут вдвое (5, 10, 20, 40 с) с небольшим разбросом;
+# на все повторы за один запуск – не больше RETRY_BUDGET_SEC, чтобы ежечасная задача уложилась в свои
+# 15 минут и не наползала на следующий час (запуск в xx:17)
+RETRIES = 5
+BACKOFF_SEC = 5
+RETRY_BUDGET_SEC = 8 * 60
