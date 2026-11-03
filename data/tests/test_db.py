@@ -21,6 +21,9 @@ def conn():
             cur.execute("drop table if exists series, cams_forecasts, weather_forecasts, runs, region, model_forecasts, model_runs, prophet_parts")
         conn.commit()
         db.init_schema(conn)
+        # без открытой транзакции: ежечасный запуск открывает свои соединения и в init_schema делает alter table,
+        # который ждал бы блокировку, удерживаемую чтением этого соединения
+        conn.autocommit = True
         yield conn
 
 
@@ -45,6 +48,17 @@ def fake_region(issued_at):
     frames = [pd.DataFrame({"lat": lat, "lon": 76.9, "time": times, "pm2_5": 20.0, "pm10": 30.0, "wind": 5.0,
                             "wind_dir": 180.0}) for lat in (43.3, 43.7)]
     return pd.concat(frames, ignore_index=True).assign(issued_at=issued_at)
+
+
+# прогноз одного источника – как live.fetch_forecast
+def fake_forecast(table, issued_at):
+    air, weather = fake_forecasts(issued_at)
+    return air if table == "cams_forecasts" else weather
+
+
+# новое соединение с тестовой базой на каждый вызов – как в ежечасном запуске
+def connect():
+    return db.connect(URL)
 
 
 def runs(conn) -> list[tuple]:
@@ -87,11 +101,11 @@ def test_seed_is_repeatable(conn, monkeypatch):
 
 def test_hourly_adds_hours_and_snapshots(conn, monkeypatch):
     monkeypatch.setattr(live, "download", fake_download)
-    monkeypatch.setattr(live, "fetch_forecasts", fake_forecasts)
+    monkeypatch.setattr(live, "fetch_forecast", fake_forecast)
     monkeypatch.setattr(live, "fetch_region", fake_region)
     now = START + timedelta(days=3, hours=5, minutes=30)
 
-    first = live.hourly(conn, now)
+    first = live.hourly(connect, now)
     assert first["status"] == "ok" and first["hours_added"] == 3 * 24 + 6
     assert first["cams_rows"] == first["weather_rows"] == 120
     assert first["series_last"] == (START + timedelta(days=3, hours=5)).to_pydatetime()
@@ -99,11 +113,11 @@ def test_hourly_adds_hours_and_snapshots(conn, monkeypatch):
     assert first["cleaned_rows"] == 0 and first["db_mb"] > 0
 
     # повтор в тот же час (ручной запуск или задержка cron) ничего не дублирует
-    again = live.hourly(conn, now + timedelta(minutes=10))
+    again = live.hourly(connect, now + timedelta(minutes=10))
     assert again["hours_added"] == 0 and again["cams_rows"] == 0
     assert db.counts(conn) == {"series": 3 * 24 + 6, "cams_forecasts": 120, "weather_forecasts": 120, "runs": 2, "region": 6, "model_forecasts": 0, "model_runs": 0, "prophet_parts": 0}
 
-    later = live.hourly(conn, now + timedelta(hours=2))
+    later = live.hourly(connect, now + timedelta(hours=2))
     assert later["hours_added"] == 2
     assert db.counts(conn)["cams_forecasts"] == 240  # новый снимок – новый час выпуска
 
@@ -160,9 +174,63 @@ def test_hourly_saves_forecasts_when_series_fails(conn, monkeypatch):
         raise RuntimeError("сеть недоступна")
 
     monkeypatch.setattr(live, "download", broken)
-    monkeypatch.setattr(live, "fetch_forecasts", fake_forecasts)
+    monkeypatch.setattr(live, "fetch_forecast", fake_forecast)
     monkeypatch.setattr(live, "fetch_region", fake_region)
-    result = live.hourly(conn, START + timedelta(hours=5))
+    result = live.hourly(connect, START + timedelta(hours=5))
     assert result["status"] == "error" and "ряд: сеть недоступна" in result["error"]
     assert result["cams_rows"] == 120
     assert runs(conn) == [("error", None, 120, 120, "ряд: сеть недоступна")]
+
+
+def test_hourly_reconnects_when_database_drops_connection(conn, monkeypatch):
+    # бесплатная Neon засыпает после 5 минут простоя: соединение для записи уже оборвано – нужен повтор
+    monkeypatch.setattr(live, "download", fake_download)
+    monkeypatch.setattr(live, "fetch_forecast", fake_forecast)
+    monkeypatch.setattr(live, "fetch_region", fake_region)
+    calls = []
+
+    def flaky():
+        calls.append(1)
+        fresh = db.connect(URL)
+        if len(calls) == 2:  # первое соединение после сети
+            fresh.close()
+        return fresh
+
+    result = live.hourly(flaky, START + timedelta(hours=5, minutes=30))
+    assert result["status"] == "ok" and result["hours_added"] == 6 and result["cams_rows"] == 120
+    assert len(calls) == 3
+    assert runs(conn) == [("ok", 6, 120, 120, None)]
+
+
+def test_hourly_does_not_hold_database_while_downloading(conn, monkeypatch):
+    opened = []
+
+    def tracked():
+        opened.append(db.connect(URL))
+        return opened[-1]
+
+    def download(a, b):
+        # повторы запросов могут длиться минуты – в это время ни одно соединение не должно быть открыто
+        assert opened and all(c.closed for c in opened)
+        return fake_download(a, b)
+
+    monkeypatch.setattr(live, "download", download)
+    monkeypatch.setattr(live, "fetch_forecast", fake_forecast)
+    monkeypatch.setattr(live, "fetch_region", fake_region)
+    assert live.hourly(tracked, START + timedelta(hours=5))["status"] == "ok"
+    assert all(c.closed for c in opened)
+
+
+def test_cams_snapshot_is_saved_when_weather_forecast_fails(conn, monkeypatch):
+    def forecast(table, issued_at):
+        if table == "weather_forecasts":
+            raise RuntimeError("503 Service Unavailable")
+        return fake_forecast(table, issued_at)
+
+    monkeypatch.setattr(live, "download", fake_download)
+    monkeypatch.setattr(live, "fetch_forecast", forecast)
+    monkeypatch.setattr(live, "fetch_region", fake_region)
+    result = live.hourly(connect, START + timedelta(hours=5))
+    assert result["status"] == "error" and result["cams_rows"] == 120 and result["weather_rows"] is None
+    assert result["error"] == "прогноз погоды: 503 Service Unavailable"
+    assert db.counts(conn)["cams_forecasts"] == 120

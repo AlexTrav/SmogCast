@@ -18,14 +18,17 @@ def database_url() -> str:
 def run_db(command: str) -> list[str]:
     from . import db, live  # psycopg нужен только командам с базой
 
-    with db.connect(database_url()) as conn:
-        if command == "seed":
+    url = database_url()
+    if command == "seed":
+        with db.connect(url) as conn:
             print(f"загружено часов: {live.seed(conn)}")
-            problems = []
-        else:
-            result = live.hourly(conn)
-            print({k: str(v) for k, v in result.items()})
-            problems = [f"запуск: {result['error']}"] if result["status"] == "error" else []
+        problems = []
+    else:
+        # hourly сам открывает соединения: не держит базу, пока идут запросы к Open-Meteo, и переподключается
+        result = live.hourly(lambda: db.connect(url))
+        print({k: str(v) for k, v in result.items()})
+        problems = [f"запуск: {result['error']}"] if result["status"] == "error" else []
+    with db.connect(url) as conn:
         series = db.read_series(conn)
         print(db.counts(conn))
     print(summary(series))

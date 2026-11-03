@@ -103,10 +103,13 @@ def main() -> None:
     began = time.perf_counter()
     quantiles = json.loads((REPORTS / "quantiles.json").read_text(encoding="utf-8"))
     default = json.loads((REPORTS / "selection.json").read_text(encoding="utf-8"))["default"]
+    # чтение и запись – по разным соединениям: пока модели считаются, бесплатная Neon может заснуть и оборвать связь
     with psycopg.connect(url, connect_timeout=30) as conn:
         frame = read_frame(conn)
         origin = frame.index[-1]
-        rows, timings, errors, parts = forecasts(frame, weather_provider(conn, origin), quantiles, default)
+        provider = weather_provider(conn, origin)  # снимки погоды читаются сразу, дальше база не нужна
+    rows, timings, errors, parts = forecasts(frame, provider, quantiles, default)
+    with psycopg.connect(url, connect_timeout=30) as conn:
         written = write(conn, rows)
         if parts is not None:
             write_parts(conn, parts)

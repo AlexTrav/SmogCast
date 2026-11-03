@@ -41,7 +41,10 @@ jobs:
           # если её нет, берётся значение по умолчанию из data/collect/config.py
           DB_LIMIT_MB: ${{ vars.DB_LIMIT_MB }}
         run: docker run --rm -e DATABASE_URL -e DB_LIMIT_MB smogcast-data hourly
+      # модели считаются, даже если сбор данных завершился с ошибкой (например, упал только снимок или карта):
+      # ряд в базе мог обновиться, а повторный расчёт от того же часа безопасен – прогнозы перезаписываются
       - name: Build model image
+        if: ${{ !cancelled() }}
         uses: docker/build-push-action@v6
         with:
           context: model
@@ -51,6 +54,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=model
       # прогнозы всех моделей на 72 ч от последнего часа ряда -> model_forecasts, время моделей -> model_runs
       - name: Forecast with all models
+        if: ${{ !cancelled() }}
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: >
