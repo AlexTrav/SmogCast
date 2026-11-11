@@ -8,7 +8,7 @@ const { status, wake } = useServerStatus()
 </script>
 
 <template>
-  <!-- бесплатный Render засыпает через 15 минут без запросов – предупреждаем, что первый ответ займёт до минуты -->
+  <!-- бесплатный Render засыпает через 15 минут без запросов – предупреждаем, что первый ответ займёт 1–2 минуты -->
   <Transition
     enter-from-class="opacity-0 -translate-y-2"
     leave-to-class="opacity-0 -translate-y-2"

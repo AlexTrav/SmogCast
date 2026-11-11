@@ -553,7 +553,7 @@ const messages: typeof ru = {
     off: 'not expected',
   },
   status: {
-    waking: 'The server is waking up – free hosting sleeps without visitors, this takes up to a minute…',
+    waking: 'The server is waking up – free hosting sleeps without visitors, this takes 1–2 minutes, the data will load by itself…',
     down: 'The server is unavailable.',
     retry: 'Retry',
   },
